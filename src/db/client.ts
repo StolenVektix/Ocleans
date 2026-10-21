@@ -2,7 +2,10 @@ import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
 export function createDb(connectionString: string) {
-  return drizzle({ client: new Pool({ connectionString }) });
+  const pool = new Pool({ connectionString });
+  // Sans écouteur, une connexion inactive fermée par Neon émet une erreur non gérée et fait planter le processus.
+  pool.on("error", (error: Error) => console.warn("[db] connexion inactive en erreur", error));
+  return drizzle({ client: pool });
 }
 
 export type Db = ReturnType<typeof createDb>;

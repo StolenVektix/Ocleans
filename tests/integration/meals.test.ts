@@ -117,6 +117,14 @@ describe("getMealForViewer", () => {
     expect((await getMealForViewer(db, host, meal.id))?.address).toBe("12 rue Notre-Dame, 33000 Bordeaux");
   });
 
+  it("masque l'adresse à un étudiant suspendu, même accepté", async () => {
+    const host = await makeProfile({ role: "host" });
+    const suspended = await makeProfile({ suspended: true });
+    const meal = await makeMeal(host.userId);
+    await makeBooking(meal.id, suspended.userId, "accepted");
+    expect((await getMealForViewer(db, suspended, meal.id))?.address).toBeNull();
+  });
+
   it("renvoie null pour un id invalide ou un hôte suspendu", async () => {
     const suspended = await makeProfile({ role: "host", suspended: true });
     const meal = await makeMeal(suspended.userId);

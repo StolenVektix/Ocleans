@@ -168,7 +168,9 @@ export async function getMealForViewer(db: Db, viewer: Actor | null, mealId: str
   }
 
   let address: string | null = null;
-  if (canSeeAddress({ viewerId: viewer?.userId ?? null, hostId: row.hostId, viewerBookingStatus: viewerBooking?.status ?? null })) {
+  // Un compte suspendu (suite à un signalement) ne voit plus aucune adresse.
+  const activeViewerId = viewer && !viewer.suspended ? viewer.userId : null;
+  if (canSeeAddress({ viewerId: activeViewerId, hostId: row.hostId, viewerBookingStatus: viewerBooking?.status ?? null })) {
     const [a] = await db.select({ address: meals.address }).from(meals).where(eq(meals.id, mealId));
     address = a.address;
   }
