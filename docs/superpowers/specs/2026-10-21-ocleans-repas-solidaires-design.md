@@ -331,7 +331,20 @@ flowchart LR
   2. l'étudiant envoie sa carte, l'admin la valide et l'étudiant passe vérifié ;
   3. vérification par email universitaire avec le code lu dans les logs.
 
-## 12. Ordre de construction (pour le plan)
+## 12. Récapitulatif des paramètres et décisions validés
+
+| Sujet | Décision | Détail |
+|---|---|---|
+| Messagerie | Lecture seule 7 jours après le repas, ou dès l'annulation | §3.2 D, règle 8 |
+| Suspension | Connexion impossible ; repas ouverts annulés avec notification aux étudiants | Règle 9 |
+| Suppression de compte | Profil, repas futurs et données de vérification supprimés ; messages et avis anonymisés | §9 |
+| Code email | Valable 15 min, 3 essais, 3 envois par heure maximum | §4 |
+| Limites anti-abus | 10 demandes par jour, 30 messages par minute, 5 signalements par jour | §9 |
+| Photo de carte | JPEG, PNG ou HEIC, 5 Mo maximum ; supprimée dès la décision ; supprimée après 30 jours si toujours en attente | §4, §9 |
+| Modification d'un repas | Pas en dessous du nombre de places acceptées ; pas une fois le repas commencé | Règle 5 |
+| Étiquettes de régime | Végétarien, végan, halal, casher, sans gluten, sans lactose, sans porc | §3.2 A |
+
+## 13. Ordre de construction (pour le plan)
 
 1. Socle : projet Next.js, Neon (base de données et authentification), schéma, rôles, déploiement Vercel Preview.
 2. Repas et réservations : publication, liste, demande, acceptation ou refus, « mes repas », mode démo et données de démo. **La démo est partageable dès cette étape.**
