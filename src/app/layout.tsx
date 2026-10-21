@@ -1,4 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { DemoBanner } from "@/components/demo-banner";
+import { SiteHeader } from "@/components/site-header";
+import { isDemoMode } from "@/lib/demo";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,7 +14,11 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh">
+        {isDemoMode() && <DemoBanner />}
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }

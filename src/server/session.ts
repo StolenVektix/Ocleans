@@ -7,8 +7,16 @@ import type { Role } from "@/domain/types";
 import { auth } from "@/lib/auth/server";
 
 export async function getSessionUser(): Promise<{ id: string; name: string; email: string } | null> {
-  const { data } = await auth.getSession();
-  const user = data?.user;
+  let result: Awaited<ReturnType<typeof auth.getSession>>;
+  try {
+    result = await auth.getSession();
+  } catch (error) {
+    // Session périmée sur une route que le proxy ne traite pas : le SDK tente d'effacer le cookie pendant le rendu,
+    // ce que Next interdit. On traite alors le visiteur comme déconnecté.
+    console.warn("[session] session illisible pendant le rendu", error);
+    return null;
+  }
+  const user = result.data?.user;
   return user ? { id: user.id, name: user.name ?? "", email: user.email } : null;
 }
 
