@@ -14,6 +14,8 @@ export function QuickLogin({ accounts, password }: { accounts: readonly { email:
   async function login(email: string) {
     setPending(email);
     setError(undefined);
+    // Sans déconnexion préalable, le cache de session de l'ancien compte reste prioritaire quelques minutes.
+    await authClient.signOut().catch(() => undefined);
     const { error } = await authClient.signIn.email({ email, password });
     setPending(null);
     if (error) {
