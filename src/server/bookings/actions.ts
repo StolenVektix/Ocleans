@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db/client";
 import { formValues, toFormState, type FormState } from "@/server/form-state";
+import { scheduleEmailDelivery } from "@/server/notifications/delivery";
 import { requireProfile } from "@/server/session";
 import { cancelBooking, decideBooking, requestBooking } from "./service";
 
@@ -17,6 +18,7 @@ export async function requestBookingAction(mealId: string, _prev: FormState, fd:
   revalidatePath(`/repas/${mealId}`);
   revalidatePath("/etudiant/mes-repas");
   revalidatePath("/hote/offres");
+  scheduleEmailDelivery();
   return { ok: true };
 }
 
@@ -35,6 +37,7 @@ export async function decideBookingAction(
   revalidatePath("/hote/offres");
   revalidatePath("/etudiant/mes-repas");
   revalidatePath("/repas");
+  scheduleEmailDelivery();
   return { ok: true };
 }
 
@@ -49,5 +52,6 @@ export async function cancelBookingAction(bookingId: string, _prev: FormState, f
   revalidatePath("/etudiant/mes-repas");
   revalidatePath("/hote/offres");
   revalidatePath("/repas");
+  scheduleEmailDelivery();
   return { ok: true };
 }

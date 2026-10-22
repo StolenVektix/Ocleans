@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getDb } from "@/db/client";
 import { getCardStorage } from "@/services/storage";
 import { toFormState, toFormStateOrRetry, type FormState } from "@/server/form-state";
+import { scheduleEmailDelivery } from "@/server/notifications/delivery";
 import { requireProfile } from "@/server/session";
 import { confirmUniversityEmail, reviewCard, submitStudentCard } from "./service";
 
@@ -53,5 +54,6 @@ export async function reviewCardAction(
     return toFormStateOrRetry(error, values, "Décision non enregistrée pour le moment. Réessayez.");
   }
   revalidatePath("/admin/verifications");
+  scheduleEmailDelivery();
   return { ok: true };
 }

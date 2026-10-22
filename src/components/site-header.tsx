@@ -1,9 +1,18 @@
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
+import { getDb } from "@/db/client";
+import { countUnread, ensureReminders } from "@/server/notifications/service";
 import { getCurrentProfile } from "@/server/session";
 
 export async function SiteHeader() {
   const profile = await getCurrentProfile();
+  let unread = 0;
+  if (profile && !profile.suspended) {
+    const db = getDb();
+    // Rappels « la veille » créés à l'affichage : les crons Vercel ne tournent qu'en Production.
+    await ensureReminders(db, { userId: profile.userId });
+    unread = await countUnread(db, profile.userId);
+  }
   return (
     <header className="border-b border-stone-200 bg-white">
       <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -23,6 +32,14 @@ export async function SiteHeader() {
           )}
           {profile ? (
             <>
+              <Link href="/notifications" className="relative" aria-label={`Notifications${unread ? ` (${unread} non lues)` : ""}`}>
+                🔔
+                {unread > 0 && (
+                  <span className="absolute -right-2 -top-1 rounded-full bg-orange-600 px-1.5 text-[10px] font-bold text-white">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
+              </Link>
               <span className="text-stone-500">{profile.firstName}</span>
               <SignOutButton />
             </>
