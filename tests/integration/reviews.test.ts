@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { ZodError } from "zod";
 import { reviews } from "@/db/schema";
-import { getRatings, getReviewPrompt, reviewedBookingIds, submitReview } from "@/server/reviews/service";
+import { getRatings, getRecentReviews, getReviewPrompt, reviewedBookingIds, submitReview } from "@/server/reviews/service";
 import { closeDb, db, makeBooking, makeMeal, makeProfile, resetDb } from "./helpers";
 
 const DAY = 24 * 3600 * 1000;
@@ -71,6 +71,24 @@ describe("getRatings", () => {
     expect(ratings.get(first.host.userId)).toEqual({ average: 4.5, count: 2 });
     expect(ratings.has(first.student.userId)).toBe(false);
     expect((await getRatings(db, [])).size).toBe(0);
+  });
+});
+
+describe("getRecentReviews", () => {
+  it("renvoie les derniers commentaires non vides reçus, avec le prénom de l'auteur", async () => {
+    const first = await pastBooking();
+    const second = await pastBooking(first.host);
+    const third = await pastBooking(first.host);
+    await submitReview(db, first.student, first.booking.id, { rating: "5", comment: "Délicieux" });
+    await submitReview(db, second.student, second.booking.id, { rating: "4" });
+    await submitReview(db, third.student, third.booking.id, { rating: "3", comment: "Sympa mais un peu tard" });
+    const recent = await getRecentReviews(db, [first.host.userId], 2);
+    expect(recent.get(first.host.userId)?.map((r) => [r.comment, r.rating, r.authorFirstName])).toEqual([
+      ["Sympa mais un peu tard", 3, "Léa"],
+      ["Délicieux", 5, "Léa"],
+    ]);
+    expect(recent.has(first.student.userId)).toBe(false);
+    expect((await getRecentReviews(db, [])).size).toBe(0);
   });
 });
 

@@ -1,8 +1,8 @@
-import { and, avg, count, eq, inArray } from "drizzle-orm";
+import { and, avg, count, desc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db/client";
 import { isUniqueViolation } from "@/db/errors";
-import { reviews } from "@/db/schema";
+import { profiles, reviews } from "@/db/schema";
 import type { Actor } from "@/domain/bookings";
 import { DomainError } from "@/domain/errors";
 import { assertCanReview, otherParticipantId, participantRole } from "@/domain/interactions";
@@ -17,6 +17,13 @@ const reviewSchema = z.object({
     .max(5, "Choisissez une note de 1 à 5"),
   comment: z.string().trim().max(500, "500 caractères maximum").default(""),
 });
+
+export interface RecentReview {
+  rating: number;
+  comment: string;
+  authorFirstName: string;
+  createdAt: Date;
+}
 
 export interface ReviewPrompt {
   bookingId: string;
@@ -100,4 +107,28 @@ export async function getReviewPrompt(db: Db, actor: Actor, bookingId: string, n
     alreadyReviewed,
     reason,
   };
+}
+
+// Derniers commentaires reçus (les avis sans texte ne comptent que dans la moyenne).
+export async function getRecentReviews(db: Db, targetIds: string[], perTarget = 3): Promise<Map<string, RecentReview[]>> {
+  if (targetIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      targetId: reviews.targetId,
+      rating: reviews.rating,
+      comment: reviews.comment,
+      createdAt: reviews.createdAt,
+      authorFirstName: profiles.firstName,
+    })
+    .from(reviews)
+    .innerJoin(profiles, eq(profiles.userId, reviews.authorId))
+    .where(and(inArray(reviews.targetId, [...new Set(targetIds)]), ne(reviews.comment, "")))
+    .orderBy(desc(reviews.createdAt));
+  const byTarget = new Map<string, RecentReview[]>();
+  for (const { targetId, ...review } of rows) {
+    const list = byTarget.get(targetId) ?? [];
+    if (list.length < perTarget) list.push(review);
+    byTarget.set(targetId, list);
+  }
+  return byTarget;
 }

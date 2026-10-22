@@ -24,7 +24,7 @@ import {
 } from "@/domain/interactions";
 import { mealInputSchema } from "@/domain/meal-input";
 import type { BookingStatus, MealStatus, Rating } from "@/domain/types";
-import { getRatings, reviewedBookingIds } from "@/server/reviews/service";
+import { getRatings, getRecentReviews, reviewedBookingIds, type RecentReview } from "@/server/reviews/service";
 
 export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
@@ -59,6 +59,7 @@ export interface HostMealRequest {
   studentVerified: boolean;
   cancelReason: string | null;
   studentRating: Rating | null;
+  studentReviews: RecentReview[];
   actions: { messages: boolean; review: boolean; report: boolean };
 }
 
@@ -244,6 +245,7 @@ async function loadHostMeals(db: Db, actor: Actor, now: Date, mealId?: string): 
     .where(inArray(bookings.mealId, rows.map((r) => r.id)))
     .orderBy(asc(bookings.createdAt));
   const ratings = await getRatings(db, requests.map((r) => r.studentId));
+  const recentReviews = await getRecentReviews(db, requests.map((r) => r.studentId), 2);
   const reviewed = await reviewedBookingIds(db, actor.userId, requests.map((r) => r.id));
 
   return rows.map(({ hostId, ...meal }) => {
@@ -266,6 +268,7 @@ async function loadHostMeals(db: Db, actor: Actor, now: Date, mealId?: string): 
           studentSchool: r.studentSchool,
           studentVerified: r.studentVerification === "verified",
           studentRating: ratings.get(r.studentId) ?? null,
+          studentReviews: recentReviews.get(r.studentId) ?? [],
           actions: {
             messages: canReadThread(actor, ctx),
             review: canReview({ actor, ctx, alreadyReviewed: reviewed.has(r.id), now }),

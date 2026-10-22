@@ -2,12 +2,14 @@ import { notFound } from "next/navigation";
 import { BookingStatusBadge } from "@/components/booking-status-badge";
 import { DietBadges } from "@/components/diet-badges";
 import { RatingBadge } from "@/components/rating-badge";
+import { RecentReviews } from "@/components/recent-reviews";
 import { RequestForm } from "@/components/request-form";
 import { Badge, Card, LinkButton } from "@/components/ui";
 import { getDb } from "@/db/client";
 import { formatMealDate } from "@/domain/dates";
 import { currentTime } from "@/server/clock";
 import { getMealForViewer } from "@/server/meals/service";
+import { getRecentReviews } from "@/server/reviews/service";
 import { getCurrentProfile } from "@/server/session";
 
 export default async function MealPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,6 +17,7 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
   const viewer = await getCurrentProfile();
   const meal = await getMealForViewer(getDb(), viewer, id);
   if (!meal) notFound();
+  const hostReviews = (await getRecentReviews(getDb(), [meal.hostId], 3)).get(meal.hostId) ?? [];
 
   const isHost = viewer?.userId === meal.hostId;
   const open = meal.status === "open" && meal.startsAt.getTime() > currentTime();
@@ -33,6 +36,7 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
         {meal.status === "cancelled" && <p className="rounded-lg bg-stone-100 p-3 text-stone-700">Ce repas a été annulé par l'hôte.</p>}
         <p className="whitespace-pre-line">{meal.description}</p>
         <DietBadges tags={meal.dietTags} />
+        <RecentReviews reviews={hostReviews} title={`Ce que disent les étudiants de ${meal.hostFirstName}`} />
         {meal.allergens && <p className="text-sm text-stone-600">Allergènes : {meal.allergens}</p>}
         {meal.address ? (
           <p className="rounded-lg bg-green-50 p-3 text-green-900"><strong>Adresse :</strong> {meal.address}</p>

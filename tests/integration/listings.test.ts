@@ -41,7 +41,7 @@ describe("listHostMeals", () => {
     const student = await makeProfile({ firstName: "Léa" });
     const otherHost = await makeProfile({ role: "host" });
     const pastWithOther = await makeBooking((await makeMeal(otherHost.userId, { startsAt: new Date(Date.now() - 2 * DAY) })).id, student.userId, "accepted");
-    await submitReview(db, otherHost, pastWithOther.id, { rating: "4" });
+    await submitReview(db, otherHost, pastWithOther.id, { rating: "4", comment: "Très ponctuelle" });
 
     const upcoming = await makeMeal(host.userId, { title: "Prochain" });
     await makeBooking(upcoming.id, student.userId, "accepted");
@@ -57,6 +57,7 @@ describe("listHostMeals", () => {
       actions: { messages: true, review: false, report: true },
     });
     expect(meals["Ancien"].requests[0].actions.review).toBe(true);
+    expect(meals["Prochain"].requests[0].studentReviews.map((r) => r.comment)).toEqual(["Très ponctuelle"]);
   });
 });
 

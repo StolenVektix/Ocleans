@@ -12,7 +12,8 @@ import { assertIsAdmin } from "@/domain/verification";
 import { loadBookingContext } from "@/server/bookings/context";
 import type { Tx } from "@/server/meals/service";
 
-export const SUSPENSION_REASON = "Compte suspendu par l'équipe Ocleans";
+// Affiché aux autres participants (hôtes, étudiants) : il ne doit pas révéler une sanction de modération.
+export const SUSPENSION_REASON = "Annulé par l'équipe Ocleans";
 
 const reportSchema = z.object({
   reason: z

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BookingStatusBadge } from "@/components/booking-status-badge";
 import { CancelForm } from "@/components/cancel-form";
 import { RatingBadge } from "@/components/rating-badge";
+import { RecentReviews } from "@/components/recent-reviews";
 import { DecisionButtons } from "@/components/decision-buttons";
 import { DietBadges } from "@/components/diet-badges";
 import { Badge, Card, LinkButton } from "@/components/ui";
@@ -74,6 +75,7 @@ export default async function HostMealsPage() {
                     <RatingBadge rating={r.studentRating} />
                   </div>
                   {r.requestMessage && <p className="text-sm text-stone-700">« {r.requestMessage} »</p>}
+                  <RecentReviews reviews={r.studentReviews} title="Avis reçus par cet étudiant" />
                   {r.status === "cancelled" && r.cancelReason && (
                     <p className="text-sm text-stone-600">Annulée : {r.cancelReason}</p>
                   )}

@@ -48,6 +48,12 @@ describe("createReport", () => {
   });
 });
 
+describe("SUSPENSION_REASON", () => {
+  it("reste neutre : les autres utilisateurs ne doivent pas apprendre qu'un compte est suspendu", () => {
+    expect(SUSPENSION_REASON).not.toMatch(/suspen|signal|sanction/i);
+  });
+});
+
 describe("resolveReport", () => {
   it("classe un signalement sans suspendre", async () => {
     const { admin, host, student, booking } = await setup();
