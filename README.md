@@ -29,6 +29,12 @@ npm run dev
 - **Avis** : `/avis/<réservation>` après le repas, une note de 1 à 5 par personne ; la moyenne s'affiche sur les repas.
 - **Signalements** : `/signaler/<réservation>`. L'admin les traite sur `/admin/signalements` : il les classe, ou suspend le compte, ce qui annule ses repas et demandes à venir.
 
+## Notifications et carte
+
+- **Notifications** : la cloche de l'en-tête et `/notifications`. Elles sont créées dans la même transaction que l'événement (demande, acceptation, annulation, vérification, modération). Les rappels de la veille sont créés à l'affichage, et chaque jour par le cron `/api/cron/daily` en Production.
+- **Emails** : mode « log » par défaut, qui journalise le destinataire masqué et le sujet. Pour un envoi réel, il faut un domaine vérifié chez Resend ; définir alors `RESEND_API_KEY` et `EMAIL_FROM`.
+- **Carte** : `/repas?vue=carte`, avec un cercle par quartier (Leaflet, OpenStreetMap). L'adresse exacte n'apparaît jamais sur la carte.
+
 ## Commandes
 
 | Commande | Rôle |
