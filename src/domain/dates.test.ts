@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   dateToParisLocal,
   formatMealDate,
+  formatMessageTime,
   isDayString,
   nextDay,
   parisLocalToDate,
@@ -46,5 +47,14 @@ describe("jours", () => {
     expect(isDayString("2026-02-31")).toBe(false);
     expect(nextDay("2026-10-31")).toBe("2026-11-01");
     expect(nextDay("2026-12-31")).toBe("2027-01-01");
+  });
+});
+
+describe("formatMessageTime", () => {
+  it("affiche jour, mois abrégé et heure de Paris", () => {
+    const text = formatMessageTime(new Date("2026-10-22T17:05:00Z"));
+    expect(text).toContain("22");
+    expect(text).toContain("oct");
+    expect(text).toContain("19:05");
   });
 });

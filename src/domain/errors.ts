@@ -12,7 +12,11 @@ export type DomainErrorCode =
   | "ALREADY_VERIFIED"
   | "VERIFICATION_PENDING"
   | "NOT_UNIVERSITY_EMAIL"
-  | "EMAIL_NOT_VERIFIED";
+  | "EMAIL_NOT_VERIFIED"
+  | "REVIEW_TOO_EARLY"
+  | "ALREADY_REVIEWED"
+  | "REVIEW_NOT_ALLOWED"
+  | "THREAD_CLOSED";
 
 const MESSAGES: Record<DomainErrorCode, string> = {
   FORBIDDEN: "Vous n'avez pas le droit de faire cette action.",
@@ -29,6 +33,10 @@ const MESSAGES: Record<DomainErrorCode, string> = {
   VERIFICATION_PENDING: "Une vérification est déjà en cours d'examen.",
   NOT_UNIVERSITY_EMAIL: "L'adresse de votre compte n'est pas une adresse universitaire reconnue.",
   EMAIL_NOT_VERIFIED: "Votre adresse n'a pas encore été confirmée avec le code reçu par email.",
+  REVIEW_TOO_EARLY: "Vous pourrez laisser un avis une fois le repas passé.",
+  ALREADY_REVIEWED: "Vous avez déjà laissé un avis pour ce repas.",
+  REVIEW_NOT_ALLOWED: "Un avis n'est possible que pour un repas partagé ensemble.",
+  THREAD_CLOSED: "Cette conversation est fermée.",
 };
 
 export class DomainError extends Error {

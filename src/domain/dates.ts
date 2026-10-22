@@ -83,3 +83,15 @@ export function nextDay(day: string): string {
   const [year, month, d] = day.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, d + 1)).toISOString().slice(0, 10);
 }
+
+const messageFormatter = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: PARIS,
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+export function formatMessageTime(date: Date): string {
+  return messageFormatter.format(date);
+}
