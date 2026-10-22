@@ -5,9 +5,17 @@ import { bookings, meals, profiles } from "@/db/schema";
 import { assertCanDecide, assertCanRequest, canSeeAddress, type Actor } from "@/domain/bookings";
 import { DomainError } from "@/domain/errors";
 import { isUuid } from "@/domain/ids";
-import { assertCanCancelBooking, cancellationSchema } from "@/domain/interactions";
+import {
+  assertCanCancelBooking,
+  canCancelBooking,
+  canReadThread,
+  canReview,
+  cancellationSchema,
+  type BookingContext,
+} from "@/domain/interactions";
 import type { BookingStatus, MealStatus } from "@/domain/types";
 import { countAccepted } from "@/server/meals/service";
+import { reviewedBookingIds } from "@/server/reviews/service";
 import { loadBookingContext } from "./context";
 
 const requestSchema = z.object({
@@ -18,7 +26,9 @@ export interface StudentBooking {
   id: string;
   status: BookingStatus;
   requestMessage: string;
+  cancelReason: string | null;
   createdAt: Date;
+  actions: { cancel: boolean; messages: boolean; review: boolean; report: boolean };
   meal: {
     id: string;
     title: string;
@@ -80,18 +90,20 @@ export async function decideBooking(
   });
 }
 
-export async function listStudentBookings(db: Db, actor: Actor): Promise<StudentBooking[]> {
+export async function listStudentBookings(db: Db, actor: Actor, now = new Date()): Promise<StudentBooking[]> {
   const rows = await db
     .select({
       id: bookings.id,
       status: bookings.status,
       requestMessage: bookings.requestMessage,
+      cancelReason: bookings.cancelReason,
       createdAt: bookings.createdAt,
       mealId: meals.id,
       title: meals.title,
       startsAt: meals.startsAt,
       neighborhood: meals.neighborhood,
       mealStatus: meals.status,
+      seatsTotal: meals.seatsTotal,
       address: meals.address,
       hostId: meals.hostId,
       hostFirstName: profiles.firstName,
@@ -101,22 +113,38 @@ export async function listStudentBookings(db: Db, actor: Actor): Promise<Student
     .innerJoin(profiles, eq(profiles.userId, meals.hostId))
     .where(eq(bookings.studentId, actor.userId))
     .orderBy(desc(meals.startsAt));
+  const reviewed = await reviewedBookingIds(db, actor.userId, rows.map((r) => r.id));
 
-  return rows.map((r) => ({
-    id: r.id,
-    status: r.status,
-    requestMessage: r.requestMessage,
-    createdAt: r.createdAt,
-    meal: {
-      id: r.mealId,
-      title: r.title,
-      startsAt: r.startsAt,
-      neighborhood: r.neighborhood,
-      hostFirstName: r.hostFirstName,
-      status: r.mealStatus,
-      address: canSeeAddress({ viewerId: actor.userId, hostId: r.hostId, viewerBookingStatus: r.status }) ? r.address : null,
-    },
-  }));
+  return rows.map((r) => {
+    const ctx: BookingContext = {
+      hostId: r.hostId,
+      studentId: actor.userId,
+      bookingStatus: r.status,
+      meal: { hostId: r.hostId, status: r.mealStatus, startsAt: r.startsAt, seatsTotal: r.seatsTotal },
+    };
+    return {
+      id: r.id,
+      status: r.status,
+      requestMessage: r.requestMessage,
+      cancelReason: r.cancelReason,
+      createdAt: r.createdAt,
+      meal: {
+        id: r.mealId,
+        title: r.title,
+        startsAt: r.startsAt,
+        neighborhood: r.neighborhood,
+        hostFirstName: r.hostFirstName,
+        status: r.mealStatus,
+        address: canSeeAddress({ viewerId: actor.userId, hostId: r.hostId, viewerBookingStatus: r.status }) ? r.address : null,
+      },
+      actions: {
+        cancel: canCancelBooking({ actor, ctx, now }),
+        messages: canReadThread(actor, ctx),
+        review: canReview({ actor, ctx, alreadyReviewed: reviewed.has(r.id), now }),
+        report: true,
+      },
+    };
+  });
 }
 
 export async function cancelBooking(db: Db, actor: Actor, bookingId: string, raw: { reason?: unknown }, now = new Date()): Promise<void> {

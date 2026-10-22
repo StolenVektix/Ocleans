@@ -14,9 +14,17 @@ import {
 import { isDayString, nextDay, parisLocalToDate } from "@/domain/dates";
 import { DomainError } from "@/domain/errors";
 import { isUuid } from "@/domain/ids";
-import { assertCanCancelMeal, cancellationSchema } from "@/domain/interactions";
+import {
+  assertCanCancelMeal,
+  canCancelMeal,
+  canReadThread,
+  canReview,
+  cancellationSchema,
+  type BookingContext,
+} from "@/domain/interactions";
 import { mealInputSchema } from "@/domain/meal-input";
-import type { BookingStatus, MealStatus } from "@/domain/types";
+import type { BookingStatus, MealStatus, Rating } from "@/domain/types";
+import { getRatings, reviewedBookingIds } from "@/server/reviews/service";
 
 export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
@@ -33,6 +41,7 @@ export interface PublicMeal {
   status: MealStatus;
   hostId: string;
   hostFirstName: string;
+  hostRating: Rating | null;
 }
 
 export interface MealDetail extends PublicMeal {
@@ -48,6 +57,9 @@ export interface HostMealRequest {
   studentFirstName: string;
   studentSchool: string | null;
   studentVerified: boolean;
+  cancelReason: string | null;
+  studentRating: Rating | null;
+  actions: { messages: boolean; review: boolean; report: boolean };
 }
 
 export interface HostMeal {
@@ -62,6 +74,7 @@ export interface HostMeal {
   dietTags: DietTag[];
   allergens: string;
   status: MealStatus;
+  canCancel: boolean;
   requests: HostMealRequest[];
 }
 
@@ -145,7 +158,12 @@ export async function listUpcomingMeals(db: Db, filters: MealFilters, now = new 
     .where(and(...conditions))
     .orderBy(asc(meals.startsAt));
   const counts = await acceptedCounts(db, rows.map((r) => r.id));
-  return rows.map((r) => ({ ...r, seatsLeft: seatsLeft(r.seatsTotal, counts.get(r.id) ?? 0) }));
+  const ratings = await getRatings(db, rows.map((r) => r.hostId));
+  return rows.map((r) => ({
+    ...r,
+    seatsLeft: seatsLeft(r.seatsTotal, counts.get(r.id) ?? 0),
+    hostRating: ratings.get(r.hostId) ?? null,
+  }));
 }
 
 export async function getMealForViewer(db: Db, viewer: Actor | null, mealId: string): Promise<MealDetail | null> {
@@ -176,15 +194,23 @@ export async function getMealForViewer(db: Db, viewer: Actor | null, mealId: str
     address = a.address;
   }
 
-  return { ...row, seatsLeft: seatsLeft(row.seatsTotal, await countAccepted(db, mealId)), address, viewerBooking };
+  const ratings = await getRatings(db, [row.hostId]);
+  return {
+    ...row,
+    seatsLeft: seatsLeft(row.seatsTotal, await countAccepted(db, mealId)),
+    hostRating: ratings.get(row.hostId) ?? null,
+    address,
+    viewerBooking,
+  };
 }
 
-async function loadHostMeals(db: Db, actor: Actor, mealId?: string): Promise<HostMeal[]> {
+async function loadHostMeals(db: Db, actor: Actor, now: Date, mealId?: string): Promise<HostMeal[]> {
   const conditions: SQL[] = [eq(meals.hostId, actor.userId)];
   if (mealId) conditions.push(eq(meals.id, mealId));
   const rows = await db
     .select({
       id: meals.id,
+      hostId: meals.hostId,
       title: meals.title,
       description: meals.description,
       startsAt: meals.startsAt,
@@ -204,8 +230,10 @@ async function loadHostMeals(db: Db, actor: Actor, mealId?: string): Promise<Hos
     .select({
       id: bookings.id,
       mealId: bookings.mealId,
+      studentId: bookings.studentId,
       status: bookings.status,
       requestMessage: bookings.requestMessage,
+      cancelReason: bookings.cancelReason,
       createdAt: bookings.createdAt,
       studentFirstName: profiles.firstName,
       studentSchool: profiles.school,
@@ -215,33 +243,47 @@ async function loadHostMeals(db: Db, actor: Actor, mealId?: string): Promise<Hos
     .innerJoin(profiles, eq(profiles.userId, bookings.studentId))
     .where(inArray(bookings.mealId, rows.map((r) => r.id)))
     .orderBy(asc(bookings.createdAt));
+  const ratings = await getRatings(db, requests.map((r) => r.studentId));
+  const reviewed = await reviewedBookingIds(db, actor.userId, requests.map((r) => r.id));
 
-  return rows.map((meal) => {
+  return rows.map(({ hostId, ...meal }) => {
+    const mealState = { hostId, status: meal.status, startsAt: meal.startsAt, seatsTotal: meal.seatsTotal };
     const own = requests.filter((r) => r.mealId === meal.id);
     const accepted = own.filter((r) => r.status === "accepted").length;
     return {
       ...meal,
       seatsLeft: seatsLeft(meal.seatsTotal, accepted),
-      requests: own.map((r) => ({
-        id: r.id,
-        status: r.status,
-        requestMessage: r.requestMessage,
-        createdAt: r.createdAt,
-        studentFirstName: r.studentFirstName,
-        studentSchool: r.studentSchool,
-        studentVerified: r.studentVerification === "verified",
-      })),
+      canCancel: canCancelMeal({ actor, meal: mealState, now }),
+      requests: own.map((r) => {
+        const ctx: BookingContext = { hostId, studentId: r.studentId, bookingStatus: r.status, meal: mealState };
+        return {
+          id: r.id,
+          status: r.status,
+          requestMessage: r.requestMessage,
+          cancelReason: r.cancelReason,
+          createdAt: r.createdAt,
+          studentFirstName: r.studentFirstName,
+          studentSchool: r.studentSchool,
+          studentVerified: r.studentVerification === "verified",
+          studentRating: ratings.get(r.studentId) ?? null,
+          actions: {
+            messages: canReadThread(actor, ctx),
+            review: canReview({ actor, ctx, alreadyReviewed: reviewed.has(r.id), now }),
+            report: true,
+          },
+        };
+      }),
     };
   });
 }
 
-export function listHostMeals(db: Db, actor: Actor): Promise<HostMeal[]> {
-  return loadHostMeals(db, actor);
+export function listHostMeals(db: Db, actor: Actor, now = new Date()): Promise<HostMeal[]> {
+  return loadHostMeals(db, actor, now);
 }
 
-export async function getHostMeal(db: Db, actor: Actor, mealId: string): Promise<HostMeal | null> {
+export async function getHostMeal(db: Db, actor: Actor, mealId: string, now = new Date()): Promise<HostMeal | null> {
   if (!isUuid(mealId)) return null;
-  const [meal] = await loadHostMeals(db, actor, mealId);
+  const [meal] = await loadHostMeals(db, actor, now, mealId);
   return meal ?? null;
 }
 
