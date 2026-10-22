@@ -141,7 +141,7 @@ async function suspendUser(tx: Tx, userId: string, adminId: string, now: Date): 
         userId: h.hostId,
         type: "cancelled_by_team" as const,
         title: "Une demande a été annulée",
-        body: `Une demande pour l'un de vos repas a été annulé par l'équipe Ocleans.`,
+        body: `Une demande pour l'un de vos repas a été annulée par l'équipe Ocleans.`,
         link: "/hote/offres",
       })),
     );
