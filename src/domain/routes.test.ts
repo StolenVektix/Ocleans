@@ -8,6 +8,9 @@ describe("isProtectedPath", () => {
     expect(isProtectedPath("/hote")).toBe(true);
     expect(isProtectedPath("/bienvenue")).toBe(true);
     expect(isProtectedPath("/admin/verifications")).toBe(true);
+    expect(isProtectedPath("/messages/123")).toBe(true);
+    expect(isProtectedPath("/avis/123")).toBe(true);
+    expect(isProtectedPath("/signaler/123")).toBe(true);
   });
 
   it("laisse publiques l'accueil, les repas et l'authentification", () => {
