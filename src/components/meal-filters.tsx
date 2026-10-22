@@ -3,9 +3,10 @@ import { DIET_TAGS, DIET_TAG_KEYS } from "@/config/diet-tags";
 import { NEIGHBORHOODS } from "@/config/neighborhoods";
 import { Button, Input, Label, Select } from "@/components/ui";
 
-export function MealFilters({ quartier, regime, jour }: { quartier?: string; regime?: string; jour?: string }) {
+export function MealFilters({ quartier, regime, jour, vue }: { quartier?: string; regime?: string; jour?: string; vue?: string }) {
   return (
     <form method="get" className="grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-4 sm:items-end">
+      {vue === "carte" && <input type="hidden" name="vue" value="carte" />}
       <div className="space-y-1">
         <Label htmlFor="quartier">Quartier</Label>
         <Select id="quartier" name="quartier" defaultValue={quartier ?? ""}>
