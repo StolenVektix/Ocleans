@@ -10,6 +10,7 @@ import { assertCanReport, otherParticipantId, participantRole } from "@/domain/i
 import type { Role } from "@/domain/types";
 import { assertIsAdmin } from "@/domain/verification";
 import { loadBookingContext } from "@/server/bookings/context";
+import { queueNotifications } from "@/server/notifications/service";
 import type { Tx } from "@/server/meals/service";
 
 // Affiché aux autres participants (hôtes, étudiants) : il ne doit pas révéler une sanction de modération.
@@ -90,7 +91,7 @@ export async function listOpenReports(db: Db, actor: Actor): Promise<OpenReport[
 }
 
 // Règle 9 : un compte suspendu ne se connecte plus, ses repas à venir sont annulés, et ses demandes à venir aussi.
-async function suspendUser(tx: Tx, userId: string, now: Date): Promise<void> {
+async function suspendUser(tx: Tx, userId: string, adminId: string, now: Date): Promise<void> {
   await tx.update(profiles).set({ suspended: true }).where(eq(profiles.userId, userId));
   const futureMeals = await tx
     .select({ id: meals.id })
@@ -98,22 +99,53 @@ async function suspendUser(tx: Tx, userId: string, now: Date): Promise<void> {
     .where(and(eq(meals.hostId, userId), eq(meals.status, "open"), gt(meals.startsAt, now)));
   const mealIds = futureMeals.map((m) => m.id);
   if (mealIds.length > 0) {
-    await tx.update(meals).set({ status: "cancelled", cancelReason: SUSPENSION_REASON }).where(inArray(meals.id, mealIds));
     await tx
-      .update(bookings)
+      .update(meals)
       .set({ status: "cancelled", cancelReason: SUSPENSION_REASON })
-      .where(and(inArray(bookings.mealId, mealIds), inArray(bookings.status, ["pending", "accepted"])));
+      .where(and(inArray(meals.id, mealIds), eq(meals.status, "open")));
+    const hostBookings = await tx
+      .update(bookings)
+      .set({ status: "cancelled", cancelledBy: adminId, cancelReason: SUSPENSION_REASON })
+      .where(and(inArray(bookings.mealId, mealIds), inArray(bookings.status, ["pending", "accepted"])))
+      .returning({ studentId: bookings.studentId });
+    await queueNotifications(
+      tx,
+      hostBookings.map((b) => ({
+        userId: b.studentId,
+        type: "cancelled_by_team" as const,
+        title: "Repas annulé",
+        body: `Un repas que vous aviez demandé a été annulé par l'équipe Ocleans.`,
+        link: "/etudiant/mes-repas",
+      })),
+    );
   }
   const upcomingForStudent = tx
     .select({ id: meals.id })
     .from(meals)
     .where(gt(meals.startsAt, now));
-  await tx
+  const studentBookings = await tx
     .update(bookings)
-    .set({ status: "cancelled", cancelledBy: userId, cancelReason: SUSPENSION_REASON })
+    .set({ status: "cancelled", cancelledBy: adminId, cancelReason: SUSPENSION_REASON })
     .where(
       and(eq(bookings.studentId, userId), inArray(bookings.status, ["pending", "accepted"]), inArray(bookings.mealId, upcomingForStudent)),
+    )
+    .returning({ mealId: bookings.mealId });
+  if (studentBookings.length > 0) {
+    const hosts = await tx
+      .select({ hostId: meals.hostId })
+      .from(meals)
+      .where(inArray(meals.id, studentBookings.map((b) => b.mealId)));
+    await queueNotifications(
+      tx,
+      hosts.map((h) => ({
+        userId: h.hostId,
+        type: "cancelled_by_team" as const,
+        title: "Une demande a été annulée",
+        body: `Une demande pour l'un de vos repas a été annulée par l'équipe Ocleans.`,
+        link: "/hote/offres",
+      })),
     );
+  }
 }
 
 export async function resolveReport(db: Db, actor: Actor, reportId: string, decision: "dismiss" | "suspend", now = new Date()): Promise<void> {
@@ -126,7 +158,7 @@ export async function resolveReport(db: Db, actor: Actor, reportId: string, deci
     if (decision === "suspend") {
       const [target] = await tx.select({ role: profiles.role }).from(profiles).where(eq(profiles.userId, report.reportedUserId));
       if (!target || target.role === "admin") throw new DomainError("FORBIDDEN");
-      await suspendUser(tx, report.reportedUserId, now);
+      await suspendUser(tx, report.reportedUserId, actor.userId, now);
     }
     await tx.update(reports).set({ status: "handled", handledBy: actor.userId, handledAt: now }).where(eq(reports.id, reportId));
   });

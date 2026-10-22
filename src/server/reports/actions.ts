@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db/client";
 import { formValues, toFormState, type FormState } from "@/server/form-state";
+import { scheduleEmailDelivery } from "@/server/notifications/delivery";
 import { requireProfile } from "@/server/session";
 import { createReport, resolveReport } from "./service";
 
@@ -33,5 +34,6 @@ export async function resolveReportAction(
   }
   revalidatePath("/admin/signalements");
   revalidatePath("/repas");
+  scheduleEmailDelivery();
   return { ok: true };
 }

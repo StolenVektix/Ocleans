@@ -11,6 +11,7 @@ describe("isProtectedPath", () => {
     expect(isProtectedPath("/messages/123")).toBe(true);
     expect(isProtectedPath("/avis/123")).toBe(true);
     expect(isProtectedPath("/signaler/123")).toBe(true);
+    expect(isProtectedPath("/notifications")).toBe(true);
   });
 
   it("laisse publiques l'accueil, les repas et l'authentification", () => {

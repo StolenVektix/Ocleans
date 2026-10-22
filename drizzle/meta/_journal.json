@@ -22,6 +22,20 @@
       "when": 1792662641937,
       "tag": "0002_nostalgic_vin_gonzales",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792665671098,
+      "tag": "0003_even_hemingway",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792668014089,
+      "tag": "0004_lame_mentallo",
+      "breakpoints": true
     }
   ]
 }

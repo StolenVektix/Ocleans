@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db/client";
 import { formValues, toFormState, type FormState } from "@/server/form-state";
+import { scheduleEmailDelivery } from "@/server/notifications/delivery";
 import { requireProfile } from "@/server/session";
 import { cancelMeal, createMeal, updateMeal } from "./service";
 
@@ -45,5 +46,6 @@ export async function cancelMealAction(mealId: string, _prev: FormState, fd: For
   revalidatePath("/hote/offres");
   revalidatePath("/repas");
   revalidatePath("/etudiant/mes-repas");
+  scheduleEmailDelivery();
   return { ok: true };
 }

@@ -4,7 +4,7 @@ config({ path: ".env.local", quiet: true });
 import { inArray, or, sql } from "drizzle-orm";
 import type { DietTag } from "../src/config/diet-tags";
 import { createDb } from "../src/db/client";
-import { bookings, meals, messages, profiles, reports, reviews, verifications } from "../src/db/schema";
+import { bookings, meals, messages, notifications, profiles, reports, reviews, verifications } from "../src/db/schema";
 import { createNeonStorage, storageConfigFromEnv } from "../src/services/storage";
 import { dateToParisLocal, nextDay, parisLocalToDate } from "../src/domain/dates";
 import type { BookingStatus, Role, VerificationStatus } from "../src/domain/types";
@@ -168,6 +168,7 @@ async function main() {
 
   const demoIds = [...ids.values()];
   await db.delete(reports).where(or(inArray(reports.reporterId, demoIds), inArray(reports.reportedUserId, demoIds)));
+  await db.delete(notifications).where(inArray(notifications.userId, demoIds));
 
   const hostIds = PEOPLE.filter((p) => p.role === "host").map((p) => ids.get(p.key)!);
   await db.delete(meals).where(inArray(meals.hostId, hostIds));
@@ -221,8 +222,14 @@ async function main() {
     reason: "Arrivé avec une heure de retard sans prévenir. (Signalement fictif pour la démonstration.)",
   });
 
+  await db.insert(notifications).values([
+    { userId: ids.get("mireille")!, type: "booking_requested", title: "Nouvelle demande", body: "Karim aimerait partager « Blanquette de veau ».", link: "/hote/offres", emailStatus: "skipped" },
+    { userId: ids.get("lea")!, type: "booking_accepted", title: "Demande acceptée !", body: "Mireille vous attend pour « Blanquette de veau ». L'adresse est dans Mes repas.", link: "/etudiant/mes-repas", emailStatus: "skipped" },
+    { userId: ids.get("lea")!, type: "booking_declined", title: "Demande non retenue", body: "Samira ne peut pas vous accueillir pour « Tajine poulet citron ». D'autres repas vous attendent !", link: "/repas", emailStatus: "skipped", readAt: new Date() },
+  ]);
 
-  console.log(`Démo prête : ${PEOPLE.length} comptes, ${MEALS.length} repas, ${BOOKINGS.length} demandes, 1 carte à vérifier, 3 messages, 3 avis, 1 signalement.`);
+
+  console.log(`Démo prête : ${PEOPLE.length} comptes, ${MEALS.length} repas, ${BOOKINGS.length} demandes, 1 carte à vérifier, 3 messages, 3 avis, 1 signalement, 3 notifications.`);
   await db.$client.end();
 }
 

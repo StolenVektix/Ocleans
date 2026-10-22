@@ -24,6 +24,7 @@ import {
 } from "@/domain/interactions";
 import { mealInputSchema } from "@/domain/meal-input";
 import type { BookingStatus, MealStatus, Rating } from "@/domain/types";
+import { queueNotifications } from "@/server/notifications/service";
 import { getRatings, getRecentReviews, reviewedBookingIds, type RecentReview } from "@/server/reviews/service";
 
 export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -299,9 +300,20 @@ export async function cancelMeal(db: Db, actor: Actor, mealId: string, raw: { re
     assertCanCancelMeal({ actor, meal, now });
     await tx.update(meals).set({ status: "cancelled", cancelReason: reason }).where(eq(meals.id, mealId));
     // Règle 4 : toutes les demandes encore actives suivent l'annulation du repas.
-    await tx
+    const affected = await tx
       .update(bookings)
       .set({ status: "cancelled", cancelledBy: actor.userId, cancelReason: reason })
-      .where(and(eq(bookings.mealId, mealId), inArray(bookings.status, ["pending", "accepted"])));
+      .where(and(eq(bookings.mealId, mealId), inArray(bookings.status, ["pending", "accepted"])))
+      .returning({ studentId: bookings.studentId });
+    await queueNotifications(
+      tx,
+      affected.map((b) => ({
+        userId: b.studentId,
+        type: "meal_cancelled" as const,
+        title: "Repas annulé",
+        body: `« ${meal.title} » est annulé par l'hôte : ${reason}`,
+        link: "/etudiant/mes-repas",
+      })),
+    );
   });
 }

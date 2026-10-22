@@ -19,6 +19,7 @@ import {
 } from "@/domain/verification";
 import type { CardStorage } from "@/services/storage";
 import { getAuthIdentity } from "@/server/auth-identity";
+import { queueNotifications } from "@/server/notifications/service";
 
 const SIGNED_URL_SECONDS = 300;
 
@@ -203,6 +204,23 @@ export async function reviewCard(
       .update(profiles)
       .set({ verificationStatus: decision === "approve" ? "verified" : "rejected" })
       .where(eq(profiles.userId, v.userId));
+    await queueNotifications(tx, [
+      decision === "approve"
+        ? {
+            userId: v.userId,
+            type: "verification_approved",
+            title: "Statut étudiant vérifié",
+            body: "Votre carte étudiante a été validée. Vous pouvez demander à partager des repas !",
+            link: "/repas",
+          }
+        : {
+            userId: v.userId,
+            type: "verification_rejected",
+            title: "Carte étudiante refusée",
+            body: `Votre carte n'a pas pu être validée : ${reason}. Vous pouvez en envoyer une nouvelle.`,
+            link: "/etudiant/verification",
+          },
+    ]);
     return v.cardObjectKey;
   });
   // La photo n'est plus utile une fois la décision prise (spec §9).
