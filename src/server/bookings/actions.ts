@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getDb } from "@/db/client";
 import { formValues, toFormState, type FormState } from "@/server/form-state";
 import { requireProfile } from "@/server/session";
-import { decideBooking, requestBooking } from "./service";
+import { cancelBooking, decideBooking, requestBooking } from "./service";
 
 export async function requestBookingAction(mealId: string, _prev: FormState, fd: FormData): Promise<FormState> {
   const actor = await requireProfile("student");
@@ -34,6 +34,20 @@ export async function decideBookingAction(
   }
   revalidatePath("/hote/offres");
   revalidatePath("/etudiant/mes-repas");
+  revalidatePath("/repas");
+  return { ok: true };
+}
+
+export async function cancelBookingAction(bookingId: string, _prev: FormState, fd: FormData): Promise<FormState> {
+  const actor = await requireProfile("student");
+  const values = formValues(fd);
+  try {
+    await cancelBooking(getDb(), actor, bookingId, values);
+  } catch (error) {
+    return toFormState(error, values);
+  }
+  revalidatePath("/etudiant/mes-repas");
+  revalidatePath("/hote/offres");
   revalidatePath("/repas");
   return { ok: true };
 }

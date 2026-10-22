@@ -14,8 +14,17 @@ import {
 import { isDayString, nextDay, parisLocalToDate } from "@/domain/dates";
 import { DomainError } from "@/domain/errors";
 import { isUuid } from "@/domain/ids";
+import {
+  assertCanCancelMeal,
+  canCancelMeal,
+  canReadThread,
+  canReview,
+  cancellationSchema,
+  type BookingContext,
+} from "@/domain/interactions";
 import { mealInputSchema } from "@/domain/meal-input";
-import type { BookingStatus, MealStatus } from "@/domain/types";
+import type { BookingStatus, MealStatus, Rating } from "@/domain/types";
+import { getRatings, getRecentReviews, reviewedBookingIds, type RecentReview } from "@/server/reviews/service";
 
 export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
@@ -32,6 +41,7 @@ export interface PublicMeal {
   status: MealStatus;
   hostId: string;
   hostFirstName: string;
+  hostRating: Rating | null;
 }
 
 export interface MealDetail extends PublicMeal {
@@ -47,6 +57,10 @@ export interface HostMealRequest {
   studentFirstName: string;
   studentSchool: string | null;
   studentVerified: boolean;
+  cancelReason: string | null;
+  studentRating: Rating | null;
+  studentReviews: RecentReview[];
+  actions: { messages: boolean; review: boolean; report: boolean };
 }
 
 export interface HostMeal {
@@ -61,6 +75,7 @@ export interface HostMeal {
   dietTags: DietTag[];
   allergens: string;
   status: MealStatus;
+  canCancel: boolean;
   requests: HostMealRequest[];
 }
 
@@ -144,7 +159,12 @@ export async function listUpcomingMeals(db: Db, filters: MealFilters, now = new 
     .where(and(...conditions))
     .orderBy(asc(meals.startsAt));
   const counts = await acceptedCounts(db, rows.map((r) => r.id));
-  return rows.map((r) => ({ ...r, seatsLeft: seatsLeft(r.seatsTotal, counts.get(r.id) ?? 0) }));
+  const ratings = await getRatings(db, rows.map((r) => r.hostId));
+  return rows.map((r) => ({
+    ...r,
+    seatsLeft: seatsLeft(r.seatsTotal, counts.get(r.id) ?? 0),
+    hostRating: ratings.get(r.hostId) ?? null,
+  }));
 }
 
 export async function getMealForViewer(db: Db, viewer: Actor | null, mealId: string): Promise<MealDetail | null> {
@@ -175,15 +195,23 @@ export async function getMealForViewer(db: Db, viewer: Actor | null, mealId: str
     address = a.address;
   }
 
-  return { ...row, seatsLeft: seatsLeft(row.seatsTotal, await countAccepted(db, mealId)), address, viewerBooking };
+  const ratings = await getRatings(db, [row.hostId]);
+  return {
+    ...row,
+    seatsLeft: seatsLeft(row.seatsTotal, await countAccepted(db, mealId)),
+    hostRating: ratings.get(row.hostId) ?? null,
+    address,
+    viewerBooking,
+  };
 }
 
-async function loadHostMeals(db: Db, actor: Actor, mealId?: string): Promise<HostMeal[]> {
+async function loadHostMeals(db: Db, actor: Actor, now: Date, mealId?: string): Promise<HostMeal[]> {
   const conditions: SQL[] = [eq(meals.hostId, actor.userId)];
   if (mealId) conditions.push(eq(meals.id, mealId));
   const rows = await db
     .select({
       id: meals.id,
+      hostId: meals.hostId,
       title: meals.title,
       description: meals.description,
       startsAt: meals.startsAt,
@@ -203,8 +231,10 @@ async function loadHostMeals(db: Db, actor: Actor, mealId?: string): Promise<Hos
     .select({
       id: bookings.id,
       mealId: bookings.mealId,
+      studentId: bookings.studentId,
       status: bookings.status,
       requestMessage: bookings.requestMessage,
+      cancelReason: bookings.cancelReason,
       createdAt: bookings.createdAt,
       studentFirstName: profiles.firstName,
       studentSchool: profiles.school,
@@ -214,32 +244,64 @@ async function loadHostMeals(db: Db, actor: Actor, mealId?: string): Promise<Hos
     .innerJoin(profiles, eq(profiles.userId, bookings.studentId))
     .where(inArray(bookings.mealId, rows.map((r) => r.id)))
     .orderBy(asc(bookings.createdAt));
+  const ratings = await getRatings(db, requests.map((r) => r.studentId));
+  const recentReviews = await getRecentReviews(db, requests.map((r) => r.studentId), 2);
+  const reviewed = await reviewedBookingIds(db, actor.userId, requests.map((r) => r.id));
 
-  return rows.map((meal) => {
+  return rows.map(({ hostId, ...meal }) => {
+    const mealState = { hostId, status: meal.status, startsAt: meal.startsAt, seatsTotal: meal.seatsTotal };
     const own = requests.filter((r) => r.mealId === meal.id);
     const accepted = own.filter((r) => r.status === "accepted").length;
     return {
       ...meal,
       seatsLeft: seatsLeft(meal.seatsTotal, accepted),
-      requests: own.map((r) => ({
-        id: r.id,
-        status: r.status,
-        requestMessage: r.requestMessage,
-        createdAt: r.createdAt,
-        studentFirstName: r.studentFirstName,
-        studentSchool: r.studentSchool,
-        studentVerified: r.studentVerification === "verified",
-      })),
+      canCancel: canCancelMeal({ actor, meal: mealState, now }),
+      requests: own.map((r) => {
+        const ctx: BookingContext = { hostId, studentId: r.studentId, bookingStatus: r.status, meal: mealState };
+        return {
+          id: r.id,
+          status: r.status,
+          requestMessage: r.requestMessage,
+          cancelReason: r.cancelReason,
+          createdAt: r.createdAt,
+          studentFirstName: r.studentFirstName,
+          studentSchool: r.studentSchool,
+          studentVerified: r.studentVerification === "verified",
+          studentRating: ratings.get(r.studentId) ?? null,
+          studentReviews: recentReviews.get(r.studentId) ?? [],
+          actions: {
+            messages: canReadThread(actor, ctx),
+            review: canReview({ actor, ctx, alreadyReviewed: reviewed.has(r.id), now }),
+            report: true,
+          },
+        };
+      }),
     };
   });
 }
 
-export function listHostMeals(db: Db, actor: Actor): Promise<HostMeal[]> {
-  return loadHostMeals(db, actor);
+export function listHostMeals(db: Db, actor: Actor, now = new Date()): Promise<HostMeal[]> {
+  return loadHostMeals(db, actor, now);
 }
 
-export async function getHostMeal(db: Db, actor: Actor, mealId: string): Promise<HostMeal | null> {
+export async function getHostMeal(db: Db, actor: Actor, mealId: string, now = new Date()): Promise<HostMeal | null> {
   if (!isUuid(mealId)) return null;
-  const [meal] = await loadHostMeals(db, actor, mealId);
+  const [meal] = await loadHostMeals(db, actor, now, mealId);
   return meal ?? null;
+}
+
+export async function cancelMeal(db: Db, actor: Actor, mealId: string, raw: { reason?: unknown }, now = new Date()): Promise<void> {
+  const { reason } = cancellationSchema.parse(raw);
+  if (!isUuid(mealId)) throw new DomainError("NOT_FOUND");
+  await db.transaction(async (tx) => {
+    const [meal] = await tx.select().from(meals).where(eq(meals.id, mealId)).for("update");
+    if (!meal) throw new DomainError("NOT_FOUND");
+    assertCanCancelMeal({ actor, meal, now });
+    await tx.update(meals).set({ status: "cancelled", cancelReason: reason }).where(eq(meals.id, mealId));
+    // Règle 4 : toutes les demandes encore actives suivent l'annulation du repas.
+    await tx
+      .update(bookings)
+      .set({ status: "cancelled", cancelledBy: actor.userId, cancelReason: reason })
+      .where(and(eq(bookings.mealId, mealId), inArray(bookings.status, ["pending", "accepted"])));
+  });
 }

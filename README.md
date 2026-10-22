@@ -22,6 +22,13 @@ npm run dev
 - Par **carte étudiante** : la photo (4 Mo maximum) est stockée dans le bucket privé `student-cards` de Neon Object Storage, puis supprimée dès que l'admin a tranché sur `/admin/verifications`.
 - Variables : `NEON_STORAGE_*` (voir `.env.example`). Vérification du bucket : `npx tsx scripts/check-storage.ts`.
 
+## Interactions
+
+- **Annulation** : l'hôte annule un repas (toutes les demandes suivent) ; l'étudiant annule sa venue. Un motif est obligatoire dans les deux cas.
+- **Messagerie** : `/messages/<réservation>`, ouverte aux deux participants d'une réservation acceptée, rafraîchie toutes les 5 secondes, en lecture seule après une annulation ou 7 jours après le repas.
+- **Avis** : `/avis/<réservation>` après le repas, une note de 1 à 5 par personne ; la moyenne s'affiche sur les repas.
+- **Signalements** : `/signaler/<réservation>`. L'admin les traite sur `/admin/signalements` : il les classe, ou suspend le compte, ce qui annule ses repas et demandes à venir.
+
 ## Commandes
 
 | Commande | Rôle |

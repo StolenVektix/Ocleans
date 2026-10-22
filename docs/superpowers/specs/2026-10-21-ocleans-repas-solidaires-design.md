@@ -45,7 +45,8 @@ Le rôle `student` ou `host` est choisi à l'inscription. Le rôle `admin` est a
 
 ### 3.2 Options (toutes incluses dans le prototype)
 - **A. Régimes et allergies** : l'hôte coche des étiquettes (végétarien, végan, halal, casher, sans gluten, sans lactose, sans porc) et peut préciser les allergènes en texte libre. L'étudiant filtre les repas par étiquette.
-- **B. Notifications par email** : nouvelle demande (à l'hôte), demande acceptée avec l'adresse (à l'étudiant), demande refusée, annulation (à l'autre partie), rappel la veille (aux deux), résultat de la vérification (à l'étudiant).
+- **B. Notifications** : nouvelle demande (à l'hôte), demande acceptée avec l'adresse (à l'étudiant), demande refusée, annulation (à l'autre partie), rappel la veille (aux deux), résultat de la vérification (à l'étudiant).
+  *Décision du 2026-10-22 (option C)* : sans nom de domaine, aucun fournisseur ne peut écrire à n'importe quelle adresse. Les notifications sont donc d'abord **dans l'application** (compteur dans l'en-tête et page « Notifications »). L'envoi d'emails passe par une interface unique, en mode « log » tant qu'aucun domaine n'est configuré ; le jour où un domaine et un fournisseur (Resend) sont branchés, les mêmes événements partent aussi par email, sans autre changement de code.
 - **C. Carte** : Leaflet + OpenStreetMap. Chaque repas est placé au **centre de son quartier**, jamais à l'adresse exacte. On peut basculer entre la liste et la carte.
 - **D. Messagerie** : un fil par réservation acceptée, ouvert uniquement aux deux participants et rafraîchi toutes les 5 secondes. Le fil passe en lecture seule 7 jours après le repas, ou dès l'annulation.
 - **E. Avis et signalement** : après l'heure du repas, sur une réservation acceptée, chaque participant peut laisser une note de 1 à 5 avec un commentaire facultatif (au maximum un avis par personne et par réservation). Un signalement est possible à tout moment depuis un profil ou une réservation.

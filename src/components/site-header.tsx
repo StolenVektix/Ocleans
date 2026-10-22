@@ -15,7 +15,12 @@ export async function SiteHeader() {
             <Link href="/etudiant/verification" className="font-medium text-orange-700">Vérification</Link>
           )}
           {profile?.role === "host" && <Link href="/hote/offres">Mes offres</Link>}
-          {profile?.role === "admin" && <Link href="/admin/verifications">Vérifications</Link>}
+          {profile?.role === "admin" && (
+            <>
+              <Link href="/admin/verifications">Vérifications</Link>
+              <Link href="/admin/signalements">Signalements</Link>
+            </>
+          )}
           {profile ? (
             <>
               <span className="text-stone-500">{profile.firstName}</span>

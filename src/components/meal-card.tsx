@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DietBadges } from "@/components/diet-badges";
+import { RatingBadge } from "@/components/rating-badge";
 import { Badge, Card } from "@/components/ui";
 import { formatMealDate } from "@/domain/dates";
 import type { PublicMeal } from "@/server/meals/service";
@@ -12,8 +13,9 @@ export function MealCard({ meal }: { meal: PublicMeal }) {
           <h2 className="text-lg font-semibold">{meal.title}</h2>
           {meal.seatsLeft === 0 ? <Badge tone="neutral">Complet</Badge> : <Badge tone="orange">{meal.seatsLeft} place(s)</Badge>}
         </div>
-        <p className="text-sm text-stone-600">
-          {formatMealDate(meal.startsAt)} · {meal.neighborhood} · chez {meal.hostFirstName}
+        <p className="flex flex-wrap items-center gap-x-2 text-sm text-stone-600">
+          <span>{formatMealDate(meal.startsAt)} · {meal.neighborhood} · chez {meal.hostFirstName}</span>
+          <RatingBadge rating={meal.hostRating} />
         </p>
         <DietBadges tags={meal.dietTags} />
       </Card>

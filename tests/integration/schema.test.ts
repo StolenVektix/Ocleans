@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { verifications } from "@/db/schema";
+import { isUniqueViolation } from "@/db/errors";
+import { reviews, verifications } from "@/db/schema";
 import { closeDb, db, makeBooking, makeMeal, makeProfile, resetDb } from "./helpers";
 
 beforeEach(resetDb);
@@ -31,5 +32,16 @@ describe("schéma", () => {
       .values({ userId: student.userId, method: "card", school: "Bordeaux INP", studentNumber: "21456789", cardObjectKey: "cards/x.jpg" })
       .returning();
     expect(row).toMatchObject({ status: "pending", reviewedAt: null, rejectionReason: null });
+  });
+  it("n'accepte qu'un avis par auteur et par réservation, et l'erreur est reconnue", async () => {
+    const host = await makeProfile({ role: "host" });
+    const student = await makeProfile();
+    const meal = await makeMeal(host.userId);
+    const booking = await makeBooking(meal.id, student.userId, "accepted");
+    const review = { bookingId: booking.id, authorId: student.userId, targetId: host.userId, rating: 5 };
+    await db.insert(reviews).values(review);
+    const error = await db.insert(reviews).values(review).then(() => null, (e: unknown) => e);
+    expect(isUniqueViolation(error)).toBe(true);
+    expect(isUniqueViolation(new Error("autre"))).toBe(false);
   });
 });

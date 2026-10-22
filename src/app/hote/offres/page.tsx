@@ -1,10 +1,15 @@
+import Link from "next/link";
 import { BookingStatusBadge } from "@/components/booking-status-badge";
+import { CancelForm } from "@/components/cancel-form";
+import { RatingBadge } from "@/components/rating-badge";
+import { RecentReviews } from "@/components/recent-reviews";
 import { DecisionButtons } from "@/components/decision-buttons";
 import { DietBadges } from "@/components/diet-badges";
 import { Badge, Card, LinkButton } from "@/components/ui";
 import { getDb } from "@/db/client";
 import { formatMealDate } from "@/domain/dates";
 import { currentTime } from "@/server/clock";
+import { cancelMealAction } from "@/server/meals/actions";
 import { listHostMeals } from "@/server/meals/service";
 import { requireProfile } from "@/server/session";
 
@@ -48,8 +53,14 @@ export default async function HostMealsPage() {
             </div>
             <DietBadges tags={meal.dietTags} />
             {upcoming && (
-              <LinkButton href={`/hote/offres/${meal.id}/modifier`} variant="secondary">Modifier</LinkButton>
+              <div className="flex flex-wrap items-start gap-2">
+                <LinkButton href={`/hote/offres/${meal.id}/modifier`} variant="secondary">Modifier</LinkButton>
+              </div>
             )}
+            {meal.canCancel && (
+              <CancelForm action={cancelMealAction.bind(null, meal.id)} buttonLabel="Annuler ce repas" confirmLabel="Confirmer l'annulation du repas" />
+            )}
+            {meal.status === "cancelled" && <p className="text-sm text-stone-600">Repas annulé.</p>}
 
             <div className="space-y-2 border-t border-stone-100 pt-3">
               <h3 className="text-sm font-semibold text-stone-700">Demandes ({meal.requests.length})</h3>
@@ -61,8 +72,18 @@ export default async function HostMealsPage() {
                     {r.studentSchool && <span className="text-sm text-stone-600">· {r.studentSchool}</span>}
                     {r.studentVerified && <Badge tone="green">Étudiant vérifié</Badge>}
                     <BookingStatusBadge status={r.status} />
+                    <RatingBadge rating={r.studentRating} />
                   </div>
                   {r.requestMessage && <p className="text-sm text-stone-700">« {r.requestMessage} »</p>}
+                  <RecentReviews reviews={r.studentReviews} title="Avis reçus par cet étudiant" />
+                  {r.status === "cancelled" && r.cancelReason && (
+                    <p className="text-sm text-stone-600">Annulée : {r.cancelReason}</p>
+                  )}
+                  <div className="flex flex-wrap gap-3 text-sm">
+                    {r.actions.messages && <Link href={`/messages/${r.id}`} className="font-medium text-orange-700 underline">Messages</Link>}
+                    {r.actions.review && <Link href={`/avis/${r.id}`} className="font-medium text-orange-700 underline">Laisser un avis</Link>}
+                    {r.actions.report && <Link href={`/signaler/${r.id}`} className="text-stone-500 underline">Signaler</Link>}
+                  </div>
                   {r.status === "pending" && upcoming && <DecisionButtons bookingId={r.id} />}
                 </div>
               ))}

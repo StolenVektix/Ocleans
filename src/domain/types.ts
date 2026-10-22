@@ -15,3 +15,11 @@ export type VerificationMethod = (typeof VERIFICATION_METHODS)[number];
 
 export const VERIFICATION_REQUEST_STATUSES = ["pending", "approved", "rejected"] as const;
 export type VerificationRequestStatus = (typeof VERIFICATION_REQUEST_STATUSES)[number];
+
+export const REPORT_STATUSES = ["open", "handled"] as const;
+export type ReportStatus = (typeof REPORT_STATUSES)[number];
+
+export interface Rating {
+  average: number;
+  count: number;
+}
