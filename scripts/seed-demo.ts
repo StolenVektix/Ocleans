@@ -1,10 +1,10 @@
 import { config } from "dotenv";
 config({ path: ".env.local", quiet: true });
 
-import { inArray, sql } from "drizzle-orm";
+import { inArray, or, sql } from "drizzle-orm";
 import type { DietTag } from "../src/config/diet-tags";
 import { createDb } from "../src/db/client";
-import { bookings, meals, profiles, verifications } from "../src/db/schema";
+import { bookings, meals, messages, profiles, reports, reviews, verifications } from "../src/db/schema";
 import { createNeonStorage, storageConfigFromEnv } from "../src/services/storage";
 import { dateToParisLocal, nextDay, parisLocalToDate } from "../src/domain/dates";
 import type { BookingStatus, Role, VerificationStatus } from "../src/domain/types";
@@ -166,6 +166,9 @@ async function main() {
     .insert(verifications)
     .values({ userId: ids.get("lea")!, method: "card", school: "Université de Bordeaux", studentNumber: "21456789", status: "approved", reviewedAt: new Date() });
 
+  const demoIds = [...ids.values()];
+  await db.delete(reports).where(or(inArray(reports.reporterId, demoIds), inArray(reports.reportedUserId, demoIds)));
+
   const hostIds = PEOPLE.filter((p) => p.role === "host").map((p) => ids.get(p.key)!);
   await db.delete(meals).where(inArray(meals.hostId, hostIds));
 
@@ -188,16 +191,38 @@ async function main() {
     mealIds.set(m.key, row.id);
   }
 
+  const bookingIds = new Map<string, string>();
   for (const b of BOOKINGS) {
-    await db.insert(bookings).values({
-      mealId: mealIds.get(b.meal)!,
-      studentId: ids.get(b.student)!,
-      status: b.status,
-      requestMessage: b.message,
-    });
+    const [row] = await db
+      .insert(bookings)
+      .values({ mealId: mealIds.get(b.meal)!, studentId: ids.get(b.student)!, status: b.status, requestMessage: b.message })
+      .returning({ id: bookings.id });
+    bookingIds.set(`${b.meal}:${b.student}`, row.id);
   }
 
-  console.log(`Démo prête : ${PEOPLE.length} comptes, ${MEALS.length} repas, ${BOOKINGS.length} demandes, 1 carte à vérifier.`);
+  const blanquetteLea = bookingIds.get("blanquette:lea")!;
+  const minutesAgo = (n: number) => new Date(Date.now() - n * 60_000);
+  await db.insert(messages).values([
+    { bookingId: blanquetteLea, senderId: ids.get("lea")!, body: "Bonjour Mireille, merci d'avoir accepté ! Je peux apporter le dessert ?", createdAt: minutesAgo(90) },
+    { bookingId: blanquetteLea, senderId: ids.get("mireille")!, body: "Avec plaisir Léa ! Une tarte serait parfaite. Sonnez au 2e étage.", createdAt: minutesAgo(60) },
+    { bookingId: blanquetteLea, senderId: ids.get("lea")!, body: "Parfait, à vendredi !", createdAt: minutesAgo(45) },
+  ]);
+
+  await db.insert(reviews).values([
+    { bookingId: bookingIds.get("passe1:lea")!, authorId: ids.get("lea")!, targetId: ids.get("mireille")!, rating: 5, comment: "Un pot-au-feu délicieux et une soirée pleine d'histoires." },
+    { bookingId: bookingIds.get("passe1:lea")!, authorId: ids.get("mireille")!, targetId: ids.get("lea")!, rating: 5, comment: "Léa est adorable, revenez quand vous voulez !" },
+    { bookingId: bookingIds.get("passe2:karim")!, authorId: ids.get("karim")!, targetId: ids.get("jeanpierre")!, rating: 4, comment: "Confit excellent, Jean-Pierre est un vrai conteur." },
+  ]);
+
+  await db.insert(reports).values({
+    reporterId: ids.get("jeanpierre")!,
+    reportedUserId: ids.get("karim")!,
+    bookingId: bookingIds.get("passe2:karim")!,
+    reason: "Arrivé avec une heure de retard sans prévenir. (Signalement fictif pour la démonstration.)",
+  });
+
+
+  console.log(`Démo prête : ${PEOPLE.length} comptes, ${MEALS.length} repas, ${BOOKINGS.length} demandes, 1 carte à vérifier, 3 messages, 3 avis, 1 signalement.`);
   await db.$client.end();
 }
 
