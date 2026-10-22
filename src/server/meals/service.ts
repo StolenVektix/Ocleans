@@ -14,6 +14,7 @@ import {
 import { isDayString, nextDay, parisLocalToDate } from "@/domain/dates";
 import { DomainError } from "@/domain/errors";
 import { isUuid } from "@/domain/ids";
+import { assertCanCancelMeal, cancellationSchema } from "@/domain/interactions";
 import { mealInputSchema } from "@/domain/meal-input";
 import type { BookingStatus, MealStatus } from "@/domain/types";
 
@@ -242,4 +243,20 @@ export async function getHostMeal(db: Db, actor: Actor, mealId: string): Promise
   if (!isUuid(mealId)) return null;
   const [meal] = await loadHostMeals(db, actor, mealId);
   return meal ?? null;
+}
+
+export async function cancelMeal(db: Db, actor: Actor, mealId: string, raw: { reason?: unknown }, now = new Date()): Promise<void> {
+  const { reason } = cancellationSchema.parse(raw);
+  if (!isUuid(mealId)) throw new DomainError("NOT_FOUND");
+  await db.transaction(async (tx) => {
+    const [meal] = await tx.select().from(meals).where(eq(meals.id, mealId)).for("update");
+    if (!meal) throw new DomainError("NOT_FOUND");
+    assertCanCancelMeal({ actor, meal, now });
+    await tx.update(meals).set({ status: "cancelled", cancelReason: reason }).where(eq(meals.id, mealId));
+    // Règle 4 : toutes les demandes encore actives suivent l'annulation du repas.
+    await tx
+      .update(bookings)
+      .set({ status: "cancelled", cancelledBy: actor.userId, cancelReason: reason })
+      .where(and(eq(bookings.mealId, mealId), inArray(bookings.status, ["pending", "accepted"])));
+  });
 }

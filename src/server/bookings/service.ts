@@ -5,8 +5,10 @@ import { bookings, meals, profiles } from "@/db/schema";
 import { assertCanDecide, assertCanRequest, canSeeAddress, type Actor } from "@/domain/bookings";
 import { DomainError } from "@/domain/errors";
 import { isUuid } from "@/domain/ids";
+import { assertCanCancelBooking, cancellationSchema } from "@/domain/interactions";
 import type { BookingStatus, MealStatus } from "@/domain/types";
 import { countAccepted } from "@/server/meals/service";
+import { loadBookingContext } from "./context";
 
 const requestSchema = z.object({
   message: z.string().trim().max(500, "500 caractères maximum").default(""),
@@ -115,4 +117,22 @@ export async function listStudentBookings(db: Db, actor: Actor): Promise<Student
       address: canSeeAddress({ viewerId: actor.userId, hostId: r.hostId, viewerBookingStatus: r.status }) ? r.address : null,
     },
   }));
+}
+
+export async function cancelBooking(db: Db, actor: Actor, bookingId: string, raw: { reason?: unknown }, now = new Date()): Promise<void> {
+  const { reason } = cancellationSchema.parse(raw);
+  if (!isUuid(bookingId)) throw new DomainError("NOT_FOUND");
+  await db.transaction(async (tx) => {
+    // Verrou sur le repas, comme pour les acceptations : la place libérée ne peut pas être comptée deux fois.
+    const [locked] = await tx.select({ mealId: bookings.mealId }).from(bookings).where(eq(bookings.id, bookingId));
+    if (!locked) throw new DomainError("NOT_FOUND");
+    await tx.select({ id: meals.id }).from(meals).where(eq(meals.id, locked.mealId)).for("update");
+    const ctx = await loadBookingContext(tx, bookingId);
+    if (!ctx) throw new DomainError("NOT_FOUND");
+    assertCanCancelBooking({ actor, ctx, now });
+    await tx
+      .update(bookings)
+      .set({ status: "cancelled", cancelledBy: actor.userId, cancelReason: reason })
+      .where(eq(bookings.id, bookingId));
+  });
 }
