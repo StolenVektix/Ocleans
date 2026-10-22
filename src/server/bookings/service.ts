@@ -16,6 +16,7 @@ import {
 import type { BookingStatus, MealStatus } from "@/domain/types";
 import { countAccepted } from "@/server/meals/service";
 import { reviewedBookingIds } from "@/server/reviews/service";
+import { queueNotifications } from "@/server/notifications/service";
 import { loadBookingContext } from "./context";
 
 const requestSchema = z.object({
@@ -64,6 +65,16 @@ export async function requestBooking(
       .insert(bookings)
       .values({ mealId, studentId: actor.userId, requestMessage: message })
       .returning({ id: bookings.id });
+    const [student] = await tx.select({ firstName: profiles.firstName }).from(profiles).where(eq(profiles.userId, actor.userId));
+    await queueNotifications(tx, [
+      {
+        userId: meal.hostId,
+        type: "booking_requested",
+        title: "Nouvelle demande",
+        body: `${student?.firstName ?? "Un étudiant"} aimerait partager « ${meal.title} ».`,
+        link: "/hote/offres",
+      },
+    ]);
     return row;
   });
 }
@@ -86,6 +97,26 @@ export async function decideBooking(
     assertCanDecide({ actor, meal, bookingStatus: fresh.status, acceptedCount, decision, now });
     const status: BookingStatus = decision === "accept" ? "accepted" : "declined";
     await tx.update(bookings).set({ status }).where(eq(bookings.id, bookingId));
+    const ctx = await loadBookingContext(tx, bookingId);
+    if (ctx) {
+      await queueNotifications(tx, [
+        decision === "accept"
+          ? {
+              userId: ctx.studentId,
+              type: "booking_accepted",
+              title: "Demande acceptée !",
+              body: `${ctx.hostFirstName} vous attend pour « ${ctx.mealTitle} ». L'adresse est dans Mes repas.`,
+              link: "/etudiant/mes-repas",
+            }
+          : {
+              userId: ctx.studentId,
+              type: "booking_declined",
+              title: "Demande non retenue",
+              body: `${ctx.hostFirstName} ne peut pas vous accueillir pour « ${ctx.mealTitle} ». D'autres repas vous attendent !`,
+              link: "/repas",
+            },
+      ]);
+    }
     return { status };
   });
 }
@@ -162,5 +193,14 @@ export async function cancelBooking(db: Db, actor: Actor, bookingId: string, raw
       .update(bookings)
       .set({ status: "cancelled", cancelledBy: actor.userId, cancelReason: reason })
       .where(eq(bookings.id, bookingId));
+    await queueNotifications(tx, [
+      {
+        userId: ctx.hostId,
+        type: "booking_cancelled",
+        title: "Une venue est annulée",
+        body: `${ctx.studentFirstName} ne pourra pas venir à « ${ctx.mealTitle} » : ${reason}`,
+        link: "/hote/offres",
+      },
+    ]);
   });
 }
