@@ -16,6 +16,12 @@ npm run seed:demo
 npm run dev
 ```
 
+## Vérification étudiante
+
+- Par **email universitaire** : l'étudiant crée son compte avec son adresse `@etu.u-bordeaux.fr` et reçoit un code envoyé par Neon Auth. Les domaines acceptés sont dans `src/config/university-domains.ts` : n'y ajouter qu'un domaine confirmé.
+- Par **carte étudiante** : la photo (4 Mo maximum) est stockée dans le bucket privé `student-cards` de Neon Object Storage, puis supprimée dès que l'admin a tranché sur `/admin/verifications`.
+- Variables : `NEON_STORAGE_*` (voir `.env.example`). Vérification du bucket : `npx tsx scripts/check-storage.ts`.
+
 ## Commandes
 
 | Commande | Rôle |
@@ -27,4 +33,4 @@ npm run dev
 | `npm run seed:demo` | (Ré)initialiser les données de démo |
 | `vercel deploy --target preview` | Déployer une Preview (démo), puis `vercel alias set <url> ocleans-demo.vercel.app` |
 
-La Production Vercel n'a volontairement aucune variable d'environnement : elle est réservée au futur pilote.
+La Production Vercel n'a volontairement aucune variable d'environnement : elle est réservée au futur pilote. La démo Preview est publique : `npm run seed:demo` remet ses données à zéro.

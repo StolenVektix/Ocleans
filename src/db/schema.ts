@@ -12,7 +12,14 @@ import {
 } from "drizzle-orm/pg-core";
 // Imports relatifs : drizzle-kit charge ce fichier sans les alias de tsconfig.
 import type { DietTag } from "../config/diet-tags";
-import { BOOKING_STATUSES, MEAL_STATUSES, ROLES, VERIFICATION_STATUSES } from "../domain/types";
+import {
+  BOOKING_STATUSES,
+  MEAL_STATUSES,
+  ROLES,
+  VERIFICATION_METHODS,
+  VERIFICATION_REQUEST_STATUSES,
+  VERIFICATION_STATUSES,
+} from "../domain/types";
 
 export const roleEnum = pgEnum("role", ROLES);
 export const verificationStatusEnum = pgEnum("verification_status", VERIFICATION_STATUSES);
@@ -86,6 +93,31 @@ export const bookings = pgTable(
   ],
 );
 
+export const verificationMethodEnum = pgEnum("verification_method", VERIFICATION_METHODS);
+export const verificationRequestStatusEnum = pgEnum("verification_request_status", VERIFICATION_REQUEST_STATUSES);
+
+export const verifications = pgTable(
+  "verifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+    method: verificationMethodEnum("method").notNull(),
+    universityEmail: text("university_email"),
+    school: text("school"),
+    studentNumber: text("student_number"),
+    cardObjectKey: text("card_object_key"),
+    status: verificationRequestStatusEnum("status").notNull().default("pending"),
+    rejectionReason: text("rejection_reason"),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    ...timestamps(),
+  },
+  (t) => [index("verifications_user_idx").on(t.userId), index("verifications_status_idx").on(t.status)],
+);
+
 export type Profile = typeof profiles.$inferSelect;
 export type Meal = typeof meals.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
+export type Verification = typeof verifications.$inferSelect;

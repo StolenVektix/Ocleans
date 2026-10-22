@@ -66,7 +66,11 @@ export function SignUpForm() {
 
 export function SignInForm() {
   const { pending, error, onSubmit } = useAuthSubmit(
-    (fd) => authClient.signIn.email({ email: String(fd.get("email")), password: String(fd.get("password")) }),
+    async (fd) => {
+      // Changer de compte sans se déconnecter : on ferme d'abord l'ancienne session (et son cache).
+      await authClient.signOut().catch(() => undefined);
+      return authClient.signIn.email({ email: String(fd.get("email")), password: String(fd.get("password")) });
+    },
     "Email ou mot de passe incorrect.",
   );
   return (

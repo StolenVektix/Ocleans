@@ -4,7 +4,8 @@ config({ path: ".env.local", quiet: true });
 import { inArray, sql } from "drizzle-orm";
 import type { DietTag } from "../src/config/diet-tags";
 import { createDb } from "../src/db/client";
-import { bookings, meals, profiles } from "../src/db/schema";
+import { bookings, meals, profiles, verifications } from "../src/db/schema";
+import { createNeonStorage, storageConfigFromEnv } from "../src/services/storage";
 import { dateToParisLocal, nextDay, parisLocalToDate } from "../src/domain/dates";
 import type { BookingStatus, Role, VerificationStatus } from "../src/domain/types";
 
@@ -37,6 +38,7 @@ const PEOPLE: Person[] = [
   { key: "lea", email: "lea.demo@example.com", firstName: "Léa", role: "student", school: "Université de Bordeaux", verificationStatus: "verified" },
   { key: "karim", email: "karim.demo@example.com", firstName: "Karim", role: "student", school: "Bordeaux INP", verificationStatus: "verified" },
   { key: "chloe", email: "chloe.demo@example.com", firstName: "Chloé", role: "student", school: "Université Bordeaux Montaigne", verificationStatus: "none" },
+  { key: "thomas", email: "thomas.demo@example.com", firstName: "Thomas", role: "student", school: "Bordeaux INP", verificationStatus: "pending" },
   { key: "admin", email: "admin.demo@example.com", firstName: "Admin", role: "admin" },
 ];
 
@@ -82,6 +84,17 @@ const BOOKINGS: Array<{ meal: string; student: string; status: BookingStatus; me
   { meal: "passe1", student: "lea", status: "accepted", message: "Merci pour l'invitation." },
   { meal: "passe2", student: "karim", status: "accepted", message: "Avec plaisir." },
 ];
+
+// Fausse carte étudiante pour la démo (aucune donnée réelle).
+const DEMO_CARD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400">
+<rect width="640" height="400" rx="24" fill="#1e3a5f"/>
+<text x="40" y="70" font-family="sans-serif" font-size="30" fill="#fff" font-weight="bold">CARTE ÉTUDIANTE — DÉMO</text>
+<text x="40" y="120" font-family="sans-serif" font-size="22" fill="#cbd5e1">Bordeaux INP · 2026-2027</text>
+<rect x="40" y="160" width="150" height="190" rx="12" fill="#cbd5e1"/>
+<text x="230" y="210" font-family="sans-serif" font-size="26" fill="#fff">Thomas DÉMO</text>
+<text x="230" y="260" font-family="sans-serif" font-size="22" fill="#cbd5e1">N° étudiant : 21987654</text>
+<text x="230" y="330" font-family="sans-serif" font-size="16" fill="#f59e0b">Document fictif généré pour la démonstration</text>
+</svg>`;
 
 function parisAt(days: number, time: string): Date {
   let day = dateToParisLocal(new Date()).slice(0, 10);
@@ -130,6 +143,29 @@ async function main() {
     await db.insert(profiles).values(values).onConflictDoUpdate({ target: profiles.userId, set: values });
   }
 
+  // Vérifications : on repart de zéro pour les comptes de démo, photos comprises.
+  const storage = createNeonStorage(storageConfigFromEnv());
+  const demoUserIds = [...ids.values()];
+  const oldCards = await db
+    .select({ key: verifications.cardObjectKey })
+    .from(verifications)
+    .where(inArray(verifications.userId, demoUserIds));
+  for (const { key } of oldCards) if (key) await storage.delete(key).catch(() => {});
+  await db.delete(verifications).where(inArray(verifications.userId, demoUserIds));
+
+  const cardKey = `cards/${ids.get("thomas")}/demo-carte.svg`;
+  await storage.put(cardKey, new TextEncoder().encode(DEMO_CARD_SVG), "image/svg+xml");
+  await db.insert(verifications).values({
+    userId: ids.get("thomas")!,
+    method: "card",
+    school: "Bordeaux INP",
+    studentNumber: "21987654",
+    cardObjectKey: cardKey,
+  });
+  await db
+    .insert(verifications)
+    .values({ userId: ids.get("lea")!, method: "card", school: "Université de Bordeaux", studentNumber: "21456789", status: "approved", reviewedAt: new Date() });
+
   const hostIds = PEOPLE.filter((p) => p.role === "host").map((p) => ids.get(p.key)!);
   await db.delete(meals).where(inArray(meals.hostId, hostIds));
 
@@ -161,7 +197,7 @@ async function main() {
     });
   }
 
-  console.log(`Démo prête : ${PEOPLE.length} comptes, ${MEALS.length} repas, ${BOOKINGS.length} demandes.`);
+  console.log(`Démo prête : ${PEOPLE.length} comptes, ${MEALS.length} repas, ${BOOKINGS.length} demandes, 1 carte à vérifier.`);
   await db.$client.end();
 }
 

@@ -74,8 +74,9 @@ flowchart TD
     H --> X[Suppression de la photo]
 ```
 
-1. **Email universitaire (méthode principale)** : l'étudiant saisit une adresse dont le domaine figure dans une liste configurable (`config/university-domains.ts` : Université de Bordeaux, Bordeaux Montaigne, Sciences Po Bordeaux, Bordeaux INP, KEDGE, etc.). Un code à 6 chiffres lui est envoyé. Le code est valable 15 minutes et autorise 3 essais, avec une limite de 3 envois par heure. Les domaines exacts seront vérifiés pendant l'implémentation.
-2. **Carte étudiante (méthode de repli)** : l'étudiant saisit son numéro étudiant et son école, puis envoie une photo de sa carte (JPEG, PNG ou HEIC, 5 Mo au maximum). Le format du numéro est contrôlé à l'aide de règles configurables par école (longueur, chiffres et lettres autorisés). La demande passe en `pending` et l'admin la valide ou la refuse avec un motif. La photo est supprimée dès la décision.
+1. **Email universitaire (méthode principale)** : l'étudiant **crée son compte avec son adresse universitaire**, dont le domaine doit figurer dans une liste configurable (`src/config/university-domains.ts`). Le code de vérification est envoyé et contrôlé par Neon Auth (fonction « Email OTP », envoi gratuit sans nom de domaine). Sa durée de validité, le nombre d'essais et la fréquence d'envoi sont ceux de Neon Auth, qui bloque après trop d'essais. Une fois l'email vérifié, le serveur le confirme dans `neon_auth."user"` et passe l'étudiant en `verified`. Seul `etu.u-bordeaux.fr` est confirmé à ce jour ; les autres domaines (Bordeaux Montaigne, Bordeaux INP, Sciences Po Bordeaux, KEDGE, etc.) seront ajoutés une fois confirmés.
+   *Décision du 2026-10-22* : sans nom de domaine, un fournisseur d'emails externe ne peut pas écrire à une adresse universitaire. On renonce donc à une adresse universitaire distincte de l'adresse du compte.
+2. **Carte étudiante (méthode de repli)** : l'étudiant saisit son numéro étudiant et son école, puis envoie une photo de sa carte (JPEG, PNG ou HEIC, 4 Mo au maximum : Vercel limite le corps d'une requête à 4,5 Mo). Le format du numéro est contrôlé à l'aide de règles configurables par école (longueur, chiffres et lettres autorisés). La demande passe en `pending` et l'admin la valide ou la refuse avec un motif. La photo est supprimée dès la décision.
 
 Un étudiant non vérifié peut parcourir les repas, mais ne peut pas envoyer de demande.
 
@@ -154,7 +155,7 @@ erDiagram
         uuid id PK
         uuid user_id FK
         enum method "university_email | card"
-        string university_email
+        string university_email "adresse du compte"
         string student_number "format contrôlé"
         string card_object_key "null après revue"
         enum status "pending | approved | rejected"
@@ -290,7 +291,7 @@ sequenceDiagram
   - **suppression dès la décision** ;
   - nettoyage automatique des photos en attente de plus de 30 jours ;
   - on ne conserve que la méthode, le statut, l'école et le numéro étudiant.
-- **Limites anti-abus** : codes email (3 par heure), demandes (10 par jour), messages (30 par minute), signalements (5 par jour), par utilisateur.
+- **Limites anti-abus** : codes email (limites de Neon Auth), demandes (10 par jour), messages (30 par minute), signalements (5 par jour), par utilisateur.
 - **Transparence** : la page « Données personnelles » indique les données collectées, leur finalité et leur durée de conservation. Une mention d'information est affichée avant l'envoi de la carte.
 - **Droit à l'effacement** : un bouton « Supprimer mon compte » supprime le profil, les repas futurs (qui sont annulés, avec notification) et les données de vérification. Les messages et avis sont anonymisés.
 
@@ -338,9 +339,9 @@ flowchart LR
 | Messagerie | Lecture seule 7 jours après le repas, ou dès l'annulation | §3.2 D, règle 8 |
 | Suspension | Connexion impossible ; repas ouverts annulés avec notification aux étudiants | Règle 9 |
 | Suppression de compte | Profil, repas futurs et données de vérification supprimés ; messages et avis anonymisés | §9 |
-| Code email | Valable 15 min, 3 essais, 3 envois par heure maximum | §4 |
+| Code email | Envoyé à l'adresse universitaire du compte par Neon Auth ; limites de durée, d'essais et d'envois fixées par Neon Auth | §4 |
 | Limites anti-abus | 10 demandes par jour, 30 messages par minute, 5 signalements par jour | §9 |
-| Photo de carte | JPEG, PNG ou HEIC, 5 Mo maximum ; supprimée dès la décision ; supprimée après 30 jours si toujours en attente | §4, §9 |
+| Photo de carte | JPEG, PNG ou HEIC, 4 Mo maximum ; supprimée dès la décision ; supprimée après 30 jours si toujours en attente | §4, §9 |
 | Modification d'un repas | Pas en dessous du nombre de places acceptées ; pas une fois le repas commencé | Règle 5 |
 | Étiquettes de régime | Végétarien, végan, halal, casher, sans gluten, sans lactose, sans porc | §3.2 A |
 

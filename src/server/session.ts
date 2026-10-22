@@ -29,6 +29,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
 export function homeFor(role: Role): string {
   if (role === "host") return "/hote/offres";
+  if (role === "admin") return "/admin/verifications";
   return "/repas";
 }
 

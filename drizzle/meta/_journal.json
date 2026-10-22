@@ -8,6 +8,13 @@
       "when": 1792617639994,
       "tag": "0000_worried_dragon_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792658270067,
+      "tag": "0001_jittery_saracen",
+      "breakpoints": true
     }
   ]
 }

@@ -57,7 +57,14 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
         ) : !open ? (
           <p className="text-stone-600">Ce repas n'accepte plus de demandes.</p>
         ) : viewer.verificationStatus !== "verified" ? (
-          <p className="text-stone-600">Votre statut étudiant doit être vérifié avant de demander un repas. La vérification arrive très bientôt sur Ocleans.</p>
+          <div className="space-y-2">
+            <p className="text-stone-600">
+              {viewer.verificationStatus === "pending"
+                ? "Votre statut étudiant est en cours de vérification. Vous pourrez demander ce repas dès qu'il sera validé."
+                : "Vérifiez votre statut étudiant pour demander à partager ce repas."}
+            </p>
+            {viewer.verificationStatus !== "pending" && <LinkButton href="/etudiant/verification">Vérifier mon statut</LinkButton>}
+          </div>
         ) : meal.seatsLeft === 0 ? (
           <p className="text-stone-600">Ce repas est complet.</p>
         ) : (

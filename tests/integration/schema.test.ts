@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { closeDb, makeBooking, makeMeal, makeProfile, resetDb } from "./helpers";
+import { verifications } from "@/db/schema";
+import { closeDb, db, makeBooking, makeMeal, makeProfile, resetDb } from "./helpers";
 
 beforeEach(resetDb);
 afterAll(closeDb);
@@ -21,5 +22,14 @@ describe("schéma", () => {
     const meal = await makeMeal(host.userId);
     await makeBooking(meal.id, student.userId);
     await expect(makeBooking(meal.id, student.userId)).rejects.toThrow();
+  });
+
+  it("enregistre une demande de vérification par carte en attente", async () => {
+    const student = await makeProfile({ verificationStatus: "none" });
+    const [row] = await db
+      .insert(verifications)
+      .values({ userId: student.userId, method: "card", school: "Bordeaux INP", studentNumber: "21456789", cardObjectKey: "cards/x.jpg" })
+      .returning();
+    expect(row).toMatchObject({ status: "pending", reviewedAt: null, rejectionReason: null });
   });
 });
