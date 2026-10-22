@@ -9,3 +9,9 @@ export type MealStatus = (typeof MEAL_STATUSES)[number];
 
 export const BOOKING_STATUSES = ["pending", "accepted", "declined", "cancelled"] as const;
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
+
+export const VERIFICATION_METHODS = ["university_email", "card"] as const;
+export type VerificationMethod = (typeof VERIFICATION_METHODS)[number];
+
+export const VERIFICATION_REQUEST_STATUSES = ["pending", "approved", "rejected"] as const;
+export type VerificationRequestStatus = (typeof VERIFICATION_REQUEST_STATUSES)[number];
