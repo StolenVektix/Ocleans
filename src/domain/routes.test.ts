@@ -7,6 +7,7 @@ describe("isProtectedPath", () => {
     expect(isProtectedPath("/hote/offres")).toBe(true);
     expect(isProtectedPath("/hote")).toBe(true);
     expect(isProtectedPath("/bienvenue")).toBe(true);
+    expect(isProtectedPath("/admin/verifications")).toBe(true);
   });
 
   it("laisse publiques l'accueil, les repas et l'authentification", () => {
@@ -15,5 +16,6 @@ describe("isProtectedPath", () => {
     expect(isProtectedPath("/repas/123")).toBe(false);
     expect(isProtectedPath("/connexion")).toBe(false);
     expect(isProtectedPath("/hotels")).toBe(false);
+    expect(isProtectedPath("/administration")).toBe(false);
   });
 });
