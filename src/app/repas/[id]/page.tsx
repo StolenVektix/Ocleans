@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { BookingStatusBadge } from "@/components/booking-status-badge";
 import { DietBadges } from "@/components/diet-badges";
+import { RatingBadge } from "@/components/rating-badge";
 import { RequestForm } from "@/components/request-form";
 import { Badge, Card, LinkButton } from "@/components/ui";
 import { getDb } from "@/db/client";
@@ -25,7 +26,11 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
           <h1 className="text-2xl font-semibold">{meal.title}</h1>
           {meal.status === "cancelled" ? <Badge>Annulé</Badge> : meal.seatsLeft === 0 ? <Badge>Complet</Badge> : <Badge tone="orange">{meal.seatsLeft} place(s)</Badge>}
         </div>
-        <p className="text-stone-600">{formatMealDate(meal.startsAt)} · {meal.neighborhood} · chez {meal.hostFirstName}</p>
+        <p className="flex flex-wrap items-center gap-x-2 text-stone-600">
+          <span>{formatMealDate(meal.startsAt)} · {meal.neighborhood} · chez {meal.hostFirstName}</span>
+          <RatingBadge rating={meal.hostRating} />
+        </p>
+        {meal.status === "cancelled" && <p className="rounded-lg bg-stone-100 p-3 text-stone-700">Ce repas a été annulé par l'hôte.</p>}
         <p className="whitespace-pre-line">{meal.description}</p>
         <DietBadges tags={meal.dietTags} />
         {meal.allergens && <p className="text-sm text-stone-600">Allergènes : {meal.allergens}</p>}

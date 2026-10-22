@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { BookingStatusBadge } from "@/components/booking-status-badge";
+import { CancelForm } from "@/components/cancel-form";
 import { Card, LinkButton } from "@/components/ui";
 import { getDb } from "@/db/client";
 import { formatMealDate } from "@/domain/dates";
+import { cancelBookingAction } from "@/server/bookings/actions";
 import { listStudentBookings } from "@/server/bookings/service";
 import { currentTime } from "@/server/clock";
 import { requireProfile } from "@/server/session";
@@ -26,6 +28,17 @@ export default async function StudentMealsPage() {
           </div>
           <p className="text-sm text-stone-600">{formatMealDate(b.meal.startsAt)} · {b.meal.neighborhood} · chez {b.meal.hostFirstName}</p>
           {b.meal.address && <p className="text-sm text-green-900"><strong>Adresse :</strong> {b.meal.address}</p>}
+          {b.status === "cancelled" && b.cancelReason && (
+            <p className="text-sm text-stone-600">Annulée : {b.cancelReason}</p>
+          )}
+          <div className="flex flex-wrap gap-3 text-sm">
+            {b.actions.messages && <Link href={`/messages/${b.id}`} className="font-medium text-orange-700 underline">Messages</Link>}
+            {b.actions.review && <Link href={`/avis/${b.id}`} className="font-medium text-orange-700 underline">Laisser un avis</Link>}
+            {b.actions.report && <Link href={`/signaler/${b.id}`} className="text-stone-500 underline">Signaler</Link>}
+          </div>
+          {b.actions.cancel && (
+            <CancelForm action={cancelBookingAction.bind(null, b.id)} buttonLabel="Annuler ma venue" confirmLabel="Confirmer l'annulation" />
+          )}
         </Card>
       ))}
     </section>
