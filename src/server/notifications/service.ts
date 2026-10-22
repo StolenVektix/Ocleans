@@ -2,11 +2,9 @@ import { and, count, desc, eq, gt, isNull, lte, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { Db } from "@/db/client";
 import { bookings, meals, notifications, profiles } from "@/db/schema";
-import { formatMealDate } from "@/domain/dates";
+import { formatMealDate, reminderWindowEnd } from "@/domain/dates";
 import type { NotificationType } from "@/domain/types";
 import type { Tx } from "@/server/meals/service";
-
-export const REMINDER_WINDOW_HOURS = 24;
 
 export interface NotificationInput {
   userId: string;
@@ -71,11 +69,11 @@ export async function markAllRead(db: Db, userId: string, now = new Date()): Pro
 const hostProfile = alias(profiles, "reminder_host");
 const studentProfile = alias(profiles, "reminder_student");
 
-// Rappel « la veille » : tout repas accepté qui commence dans les 24 prochaines heures.
+// Rappel « la veille » : tout repas accepté qui commence avant la fin du lendemain (heure de Paris).
 // Idempotent grâce à dedupe_key, donc utilisable à chaque affichage de page comme depuis le cron.
 export async function ensureReminders(db: Db, options: { userId?: string; now?: Date }): Promise<number> {
   const now = options.now ?? new Date();
-  const until = new Date(now.getTime() + REMINDER_WINDOW_HOURS * 3600 * 1000);
+  const until = reminderWindowEnd(now);
   const conditions = [
     eq(bookings.status, "accepted"),
     eq(meals.status, "open"),

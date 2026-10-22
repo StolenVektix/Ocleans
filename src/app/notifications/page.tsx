@@ -3,13 +3,14 @@ import { MarkReadButton } from "@/components/mark-read-button";
 import { Card, cx } from "@/components/ui";
 import { getDb } from "@/db/client";
 import { formatMessageTime } from "@/domain/dates";
+import { scheduleEmailDelivery } from "@/server/notifications/delivery";
 import { ensureReminders, listNotifications } from "@/server/notifications/service";
 import { requireProfile } from "@/server/session";
 
 export default async function NotificationsPage() {
   const actor = await requireProfile();
   const db = getDb();
-  await ensureReminders(db, { userId: actor.userId });
+  if ((await ensureReminders(db, { userId: actor.userId })) > 0) scheduleEmailDelivery();
   const list = await listNotifications(db, actor.userId);
   const hasUnread = list.some((n) => !n.read);
   return (

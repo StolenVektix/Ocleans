@@ -3,6 +3,7 @@ import {
   dateToParisLocal,
   formatMealDate,
   formatMessageTime,
+  reminderWindowEnd,
   isDayString,
   nextDay,
   parisLocalToDate,
@@ -56,5 +57,16 @@ describe("formatMessageTime", () => {
     expect(text).toContain("22");
     expect(text).toContain("oct");
     expect(text).toContain("19:05");
+  });
+});
+
+describe("reminderWindowEnd", () => {
+  it("s'arrête à la fin du lendemain, heure de Paris, été comme hiver", () => {
+    // Cron de 7 h UTC le 22 octobre (UTC+2) : fenêtre jusqu'au 24 octobre 00:00 à Paris.
+    expect(reminderWindowEnd(new Date("2026-10-22T07:00:00Z")).toISOString()).toBe("2026-10-23T22:00:00.000Z");
+    // Juste avant minuit à Paris, toujours le 22.
+    expect(reminderWindowEnd(new Date("2026-10-22T21:59:00Z")).toISOString()).toBe("2026-10-23T22:00:00.000Z");
+    // Hiver (UTC+1).
+    expect(reminderWindowEnd(new Date("2026-12-10T07:00:00Z")).toISOString()).toBe("2026-12-11T23:00:00.000Z");
   });
 });

@@ -95,3 +95,9 @@ const messageFormatter = new Intl.DateTimeFormat("fr-FR", {
 export function formatMessageTime(date: Date): string {
   return messageFormatter.format(date);
 }
+
+// Fin de la fenêtre des rappels « la veille » : minuit à Paris à la fin du lendemain.
+export function reminderWindowEnd(now: Date): Date {
+  const today = dateToParisLocal(now).slice(0, 10);
+  return parisLocalToDate(`${nextDay(nextDay(today))}T00:00`);
+}

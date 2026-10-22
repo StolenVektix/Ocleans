@@ -196,6 +196,8 @@ export const notifications = pgTable(
     readAt: timestamp("read_at", { withTimezone: true }),
     emailStatus: emailStatusEnum("email_status").notNull().default("pending"),
     emailedAt: timestamp("emailed_at", { withTimezone: true }),
+    emailAttempts: integer("email_attempts").notNull().default(0),
+    emailClaimedAt: timestamp("email_claimed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("notifications_user_idx").on(t.userId, t.createdAt), index("notifications_email_idx").on(t.emailStatus)],

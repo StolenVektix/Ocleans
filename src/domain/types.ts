@@ -37,5 +37,5 @@ export const NOTIFICATION_TYPES = [
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
-export const EMAIL_STATUSES = ["pending", "sent", "failed", "skipped"] as const;
+export const EMAIL_STATUSES = ["pending", "sending", "sent", "failed", "skipped"] as const;
 export type EmailStatus = (typeof EMAIL_STATUSES)[number];

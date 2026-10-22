@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
 import { getDb } from "@/db/client";
+import { scheduleEmailDelivery } from "@/server/notifications/delivery";
 import { countUnread, ensureReminders } from "@/server/notifications/service";
 import { getCurrentProfile } from "@/server/session";
 
@@ -10,7 +11,7 @@ export async function SiteHeader() {
   if (profile && !profile.suspended) {
     const db = getDb();
     // Rappels « la veille » créés à l'affichage : les crons Vercel ne tournent qu'en Production.
-    await ensureReminders(db, { userId: profile.userId });
+    if ((await ensureReminders(db, { userId: profile.userId })) > 0) scheduleEmailDelivery();
     unread = await countUnread(db, profile.userId);
   }
   return (

@@ -37,20 +37,22 @@ describe("notifications", () => {
 });
 
 describe("ensureReminders", () => {
-  it("crée un rappel pour l'hôte et l'étudiant accepté d'un repas dans moins de 24 h, une seule fois", async () => {
+  it("crée un rappel pour l'hôte et l'étudiant accepté d'un repas du lendemain, une seule fois", async () => {
+    const now = new Date("2026-10-22T08:00:00Z");
+    const at = (h: number) => new Date(now.getTime() + h * HOUR);
     const host = await makeProfile({ role: "host", firstName: "Mireille" });
     const accepted = await makeProfile({ firstName: "Léa" });
     const pending = await makeProfile();
-    const soon = await makeMeal(host.userId, { title: "Blanquette", startsAt: new Date(Date.now() + 20 * HOUR) });
-    const later = await makeMeal(host.userId, { startsAt: new Date(Date.now() + 40 * HOUR) });
-    const cancelled = await makeMeal(host.userId, { startsAt: new Date(Date.now() + 10 * HOUR), status: "cancelled" });
+    const soon = await makeMeal(host.userId, { title: "Blanquette", startsAt: at(20) });
+    const later = await makeMeal(host.userId, { startsAt: at(40) }); // 24 octobre, 2 h à Paris : surlendemain
+    const cancelled = await makeMeal(host.userId, { startsAt: at(10), status: "cancelled" });
     await makeBooking(soon.id, accepted.userId, "accepted");
     await makeBooking(soon.id, pending.userId, "pending");
     await makeBooking(later.id, accepted.userId, "accepted");
     await makeBooking(cancelled.id, pending.userId, "accepted");
 
-    expect(await ensureReminders(db, {})).toBe(2);
-    expect(await ensureReminders(db, {})).toBe(0);
+    expect(await ensureReminders(db, { now })).toBe(2);
+    expect(await ensureReminders(db, { now })).toBe(0);
     const forStudent = await listNotifications(db, accepted.userId);
     expect(forStudent).toHaveLength(1);
     expect(forStudent[0]).toMatchObject({ type: "reminder", link: "/etudiant/mes-repas" });
@@ -74,6 +76,18 @@ describe("ensureReminders", () => {
     const results = await Promise.all([ensureReminders(db, { userId: s2.userId }), ensureReminders(db, { userId: s2.userId })]);
     expect(results.reduce((a, b) => a + b, 0)).toBe(1);
     expect(await countUnread(db, s2.userId)).toBe(1);
+  });
+
+  it("rappelle la veille au matin un dîner du lendemain, mais pas un repas du surlendemain", async () => {
+    const host = await makeProfile({ role: "host" });
+    const s = await makeProfile();
+    const cronRun = new Date("2026-10-22T07:00:00Z"); // 9 h à Paris
+    const tomorrowDinner = await makeMeal(host.userId, { title: "Dîner du 23", startsAt: new Date("2026-10-23T17:00:00Z") });
+    const dayAfter = await makeMeal(host.userId, { title: "Déjeuner du 24", startsAt: new Date("2026-10-24T10:30:00Z") });
+    await makeBooking(tomorrowDinner.id, s.userId, "accepted");
+    await makeBooking(dayAfter.id, s.userId, "accepted");
+    expect(await ensureReminders(db, { userId: s.userId, now: cronRun })).toBe(1);
+    expect((await listNotifications(db, s.userId))[0].body).toContain("Dîner du 23");
   });
 
   it("ne crée rien pour un repas déjà commencé", async () => {
