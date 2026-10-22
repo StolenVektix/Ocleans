@@ -87,4 +87,11 @@ describe("getReviewPrompt", () => {
     const { booking } = await pastBooking();
     expect(await getReviewPrompt(db, student, booking.id)).toBeNull();
   });
+
+  it("signale un avis déjà laissé, pour remercier plutôt qu'afficher une erreur", async () => {
+    const { student, booking } = await pastBooking();
+    expect(await getReviewPrompt(db, student, booking.id)).toMatchObject({ allowed: true, alreadyReviewed: false });
+    await submitReview(db, student, booking.id, { rating: "5" });
+    expect(await getReviewPrompt(db, student, booking.id)).toMatchObject({ allowed: false, alreadyReviewed: true });
+  });
 });

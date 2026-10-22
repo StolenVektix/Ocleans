@@ -23,6 +23,7 @@ export interface ReviewPrompt {
   mealTitle: string;
   otherFirstName: string;
   allowed: boolean;
+  alreadyReviewed: boolean;
   reason: string | null;
 }
 
@@ -84,8 +85,9 @@ export async function getReviewPrompt(db: Db, actor: Actor, bookingId: string, n
   const ctx = await loadBookingContext(db, bookingId);
   if (!ctx || participantRole(actor, ctx) === null) return null;
   let reason: string | null = null;
+  const alreadyReviewed = await hasReviewed(db, actor.userId, bookingId);
   try {
-    assertCanReview({ actor, ctx, alreadyReviewed: await hasReviewed(db, actor.userId, bookingId), now });
+    assertCanReview({ actor, ctx, alreadyReviewed, now });
   } catch (error) {
     if (!(error instanceof DomainError)) throw error;
     reason = error.message;
@@ -95,6 +97,7 @@ export async function getReviewPrompt(db: Db, actor: Actor, bookingId: string, n
     mealTitle: ctx.mealTitle,
     otherFirstName: participantRole(actor, ctx) === "host" ? ctx.studentFirstName : ctx.hostFirstName,
     allowed: reason === null,
+    alreadyReviewed,
     reason,
   };
 }
