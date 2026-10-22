@@ -48,6 +48,8 @@ export interface PendingCard {
   studentNumber: string | null;
   createdAt: Date;
   imageUrl: string | null;
+  /** false pour HEIC/HEIF : seul Safari sait les afficher, l'admin doit alors télécharger la photo. */
+  viewableInBrowser: boolean;
 }
 
 const cardSchema = z
@@ -163,6 +165,7 @@ export async function listPendingCards(db: Db, storage: CardStorage, actor: Acto
     rows.map(async ({ cardObjectKey, ...row }) => ({
       ...row,
       imageUrl: cardObjectKey ? await storage.signedUrl(cardObjectKey, SIGNED_URL_SECONDS) : null,
+      viewableInBrowser: !/\.(heic|heif)$/i.test(cardObjectKey ?? ""),
     })),
   );
 }

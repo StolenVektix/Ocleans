@@ -31,3 +31,11 @@ export function toFormState(error: unknown, values?: FormValues): FormState {
   }
   throw error;
 }
+
+// Pour les actions qui touchent un service externe (stockage) : une panne devient un message de nouvel essai
+// au lieu de la page d'erreur générique, et l'utilisateur garde sa saisie (spec §8).
+export function toFormStateOrRetry(error: unknown, values: FormValues, retryMessage: string): FormState {
+  if (error instanceof DomainError || error instanceof ZodError) return toFormState(error, values);
+  console.error("[action] échec inattendu", error);
+  return { error: retryMessage, values };
+}

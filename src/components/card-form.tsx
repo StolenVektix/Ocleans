@@ -46,7 +46,8 @@ export function CardForm() {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="card">Photo de votre carte étudiante (JPEG, PNG ou HEIC, 4 Mo maximum)</Label>
-        <Input id="card" name="card" type="file" accept="image/jpeg,image/png,image/heic,image/heif" required onChange={() => setFileError(undefined)} />
+        {/* Sans HEIC dans accept, iOS convertit la photo en JPEG ; le serveur accepte quand même le HEIC (ordinateurs). */}
+        <Input id="card" name="card" type="file" accept="image/jpeg,image/png" required onChange={() => setFileError(undefined)} />
         <FieldError errors={fileError ? [fileError] : fe.card} />
       </div>
       <p className="rounded-lg bg-stone-100 p-3 text-xs text-stone-600">

@@ -122,6 +122,14 @@ describe("listPendingCards et reviewCard", () => {
     await expect(listPendingCards(db, storage, s)).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
+  it("signale qu'une photo HEIC ne s'affiche pas dans tous les navigateurs", async () => {
+    const { storage, admin } = await setup();
+    const iphone = await student("iphone@gmail.com");
+    await submitStudentCard(db, storage, iphone, cardRaw, { type: "image/heic", size: 1000, bytes: new Uint8Array(8) });
+    const list = await listPendingCards(db, storage, admin);
+    expect(list.map((c) => c.viewableInBrowser)).toEqual([true, false]);
+  });
+
   it("valide une carte : étudiant vérifié, photo supprimée, clé effacée", async () => {
     const { storage, admin, student: s, id } = await setup();
     await reviewCard(db, storage, admin, id, "approve", {});

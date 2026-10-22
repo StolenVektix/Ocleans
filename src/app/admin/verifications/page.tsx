@@ -22,7 +22,15 @@ export default async function AdminVerificationsPage() {
               {card.school} · n° {card.studentNumber} · envoyée {formatMealDate(card.createdAt)}
             </p>
           </div>
-          {card.imageUrl ? (
+          {card.imageUrl && !card.viewableInBrowser ? (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+              Photo au format HEIC (iPhone), que la plupart des navigateurs n'affichent pas.{" "}
+              <a href={card.imageUrl} className="font-medium underline" target="_blank" rel="noreferrer">
+                Télécharger la photo
+              </a>{" "}
+              (lien valable 5 minutes).
+            </p>
+          ) : card.imageUrl ? (
             // URL signée de 5 minutes vers un bucket privé : next/image n'apporte rien ici.
             // eslint-disable-next-line @next/next/no-img-element
             <img src={card.imageUrl} alt={`Carte étudiante de ${card.firstName}`} className="max-h-80 w-full rounded-lg border border-stone-200 object-contain" />

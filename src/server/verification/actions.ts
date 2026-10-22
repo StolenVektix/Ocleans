@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db/client";
 import { getCardStorage } from "@/services/storage";
-import { toFormState, type FormState } from "@/server/form-state";
+import { toFormState, toFormStateOrRetry, type FormState } from "@/server/form-state";
 import { requireProfile } from "@/server/session";
 import { confirmUniversityEmail, reviewCard, submitStudentCard } from "./service";
 
@@ -31,7 +31,7 @@ export async function submitStudentCardAction(_prev: FormState, fd: FormData): P
       bytes: file ? new Uint8Array(await file.arrayBuffer()) : new Uint8Array(),
     });
   } catch (error) {
-    return toFormState(error, values);
+    return toFormStateOrRetry(error, values, "Envoi de la photo impossible pour le moment. Réessayez dans quelques instants.");
   }
   revalidatePath("/etudiant/verification");
   revalidatePath("/admin/verifications");
@@ -50,7 +50,7 @@ export async function reviewCardAction(
   try {
     await reviewCard(getDb(), getCardStorage(), actor, verificationId, decision, values);
   } catch (error) {
-    return toFormState(error, values);
+    return toFormStateOrRetry(error, values, "Décision non enregistrée pour le moment. Réessayez.");
   }
   revalidatePath("/admin/verifications");
   return { ok: true };
