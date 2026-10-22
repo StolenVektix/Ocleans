@@ -12,7 +12,19 @@ if (!url) throw new Error("DATABASE_URL_TEST manquant dans .env.local");
 export const db = createDb(url);
 
 export async function resetDb() {
-  await db.execute(sql`truncate table bookings, meals, profiles cascade`);
+  // La branche de test n'a pas Neon Auth : table minimale avec les seules colonnes lues par l'application.
+  await db.execute(sql`create schema if not exists neon_auth`);
+  await db.execute(
+    sql`create table if not exists neon_auth."user" (id uuid primary key default gen_random_uuid(), email text not null, "emailVerified" boolean not null default false)`,
+  );
+  await db.execute(sql`truncate table verifications, bookings, meals, profiles, neon_auth."user" cascade`);
+}
+
+export async function makeAuthUser(email: string, emailVerified = false): Promise<string> {
+  const result = await db.execute(
+    sql`insert into neon_auth."user" (email, "emailVerified") values (${email}, ${emailVerified}) returning id::text as id`,
+  );
+  return (result.rows[0] as { id: string }).id;
 }
 
 export async function closeDb() {
