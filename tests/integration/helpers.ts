@@ -17,7 +17,7 @@ export async function resetDb() {
   await db.execute(
     sql`create table if not exists neon_auth."user" (id uuid primary key default gen_random_uuid(), email text not null, "emailVerified" boolean not null default false)`,
   );
-  await db.execute(sql`truncate table reports, reviews, messages, verifications, bookings, meals, profiles, neon_auth."user" cascade`);
+  await db.execute(sql`truncate table notifications, reports, reviews, messages, verifications, bookings, meals, profiles, neon_auth."user" cascade`);
 }
 
 export async function makeAuthUser(email: string, emailVerified = false): Promise<string> {

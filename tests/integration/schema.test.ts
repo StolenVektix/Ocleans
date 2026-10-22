@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { isUniqueViolation } from "@/db/errors";
-import { reviews, verifications } from "@/db/schema";
+import { notifications, reviews, verifications } from "@/db/schema";
 import { closeDb, db, makeBooking, makeMeal, makeProfile, resetDb } from "./helpers";
 
 beforeEach(resetDb);
@@ -43,5 +43,15 @@ describe("schéma", () => {
     const error = await db.insert(reviews).values(review).then(() => null, (e: unknown) => e);
     expect(isUniqueViolation(error)).toBe(true);
     expect(isUniqueViolation(new Error("autre"))).toBe(false);
+  });
+  it("refuse deux notifications avec la même clé de déduplication", async () => {
+    const user = await makeProfile();
+    const base = { userId: user.userId, type: "reminder" as const, title: "Rappel", body: "Demain", link: "/" };
+    const [first] = await db.insert(notifications).values({ ...base, dedupeKey: "reminder:x:y" }).returning();
+    expect(first).toMatchObject({ emailStatus: "pending", readAt: null });
+    const error = await db.insert(notifications).values({ ...base, dedupeKey: "reminder:x:y" }).then(() => null, (e: unknown) => e);
+    expect(isUniqueViolation(error)).toBe(true);
+    await db.insert(notifications).values(base);
+    await db.insert(notifications).values(base);
   });
 });

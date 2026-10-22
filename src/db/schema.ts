@@ -14,7 +14,9 @@ import {
 import type { DietTag } from "../config/diet-tags";
 import {
   BOOKING_STATUSES,
+  EMAIL_STATUSES,
   MEAL_STATUSES,
+  NOTIFICATION_TYPES,
   REPORT_STATUSES,
   ROLES,
   VERIFICATION_METHODS,
@@ -176,6 +178,29 @@ export const reports = pgTable(
   (t) => [index("reports_status_idx").on(t.status)],
 );
 
+export const notificationTypeEnum = pgEnum("notification_type", NOTIFICATION_TYPES);
+export const emailStatusEnum = pgEnum("email_status", EMAIL_STATUSES);
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+    type: notificationTypeEnum("type").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    link: text("link").notNull(),
+    dedupeKey: text("dedupe_key").unique("notifications_dedupe_key_unique"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    emailStatus: emailStatusEnum("email_status").notNull().default("pending"),
+    emailedAt: timestamp("emailed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("notifications_user_idx").on(t.userId, t.createdAt), index("notifications_email_idx").on(t.emailStatus)],
+);
+
 export type Profile = typeof profiles.$inferSelect;
 export type Meal = typeof meals.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
@@ -183,3 +208,4 @@ export type Verification = typeof verifications.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type Report = typeof reports.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
