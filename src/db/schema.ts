@@ -15,6 +15,7 @@ import type { DietTag } from "../config/diet-tags";
 import {
   BOOKING_STATUSES,
   MEAL_STATUSES,
+  REPORT_STATUSES,
   ROLES,
   VERIFICATION_METHODS,
   VERIFICATION_REQUEST_STATUSES,
@@ -117,7 +118,68 @@ export const verifications = pgTable(
   (t) => [index("verifications_user_idx").on(t.userId), index("verifications_status_idx").on(t.status)],
 );
 
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("messages_booking_idx").on(t.bookingId, t.createdAt)],
+);
+
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+    targetId: text("target_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+    rating: integer("rating").notNull(),
+    comment: text("comment").notNull().default(""),
+    ...timestamps(),
+  },
+  (t) => [unique("reviews_booking_author_unique").on(t.bookingId, t.authorId), index("reviews_target_idx").on(t.targetId)],
+);
+
+export const reportStatusEnum = pgEnum("report_status", REPORT_STATUSES);
+
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reporterId: text("reporter_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+    reportedUserId: text("reported_user_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id").references(() => bookings.id, { onDelete: "set null" }),
+    reason: text("reason").notNull(),
+    status: reportStatusEnum("status").notNull().default("open"),
+    handledBy: text("handled_by"),
+    handledAt: timestamp("handled_at", { withTimezone: true }),
+    ...timestamps(),
+  },
+  (t) => [index("reports_status_idx").on(t.status)],
+);
+
 export type Profile = typeof profiles.$inferSelect;
 export type Meal = typeof meals.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
 export type Verification = typeof verifications.$inferSelect;
+export type Message = typeof messages.$inferSelect;
+export type Review = typeof reviews.$inferSelect;
+export type Report = typeof reports.$inferSelect;

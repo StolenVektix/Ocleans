@@ -15,6 +15,13 @@
       "when": 1792658270067,
       "tag": "0001_jittery_saracen",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792662641937,
+      "tag": "0002_nostalgic_vin_gonzales",
+      "breakpoints": true
     }
   ]
 }
