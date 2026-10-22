@@ -1,0 +1,91 @@
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
+// Imports relatifs : drizzle-kit charge ce fichier sans les alias de tsconfig.
+import type { DietTag } from "../config/diet-tags";
+import { BOOKING_STATUSES, MEAL_STATUSES, ROLES, VERIFICATION_STATUSES } from "../domain/types";
+
+export const roleEnum = pgEnum("role", ROLES);
+export const verificationStatusEnum = pgEnum("verification_status", VERIFICATION_STATUSES);
+export const mealStatusEnum = pgEnum("meal_status", MEAL_STATUSES);
+export const bookingStatusEnum = pgEnum("booking_status", BOOKING_STATUSES);
+
+const timestamps = () => ({
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+export const profiles = pgTable("profiles", {
+  userId: text("user_id").primaryKey(),
+  role: roleEnum("role").notNull(),
+  firstName: text("first_name").notNull(),
+  bio: text("bio").notNull().default(""),
+  school: text("school"),
+  verificationStatus: verificationStatusEnum("verification_status").notNull().default("none"),
+  suspended: boolean("suspended").notNull().default(false),
+  ...timestamps(),
+});
+
+export const meals = pgTable(
+  "meals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    hostId: text("host_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    neighborhood: text("neighborhood").notNull(),
+    address: text("address").notNull(),
+    seatsTotal: integer("seats_total").notNull(),
+    dietTags: text("diet_tags")
+      .array()
+      .$type<DietTag[]>()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    allergens: text("allergens").notNull().default(""),
+    status: mealStatusEnum("status").notNull().default("open"),
+    cancelReason: text("cancel_reason"),
+    ...timestamps(),
+  },
+  (t) => [index("meals_starts_at_idx").on(t.startsAt), index("meals_host_idx").on(t.hostId)],
+);
+
+export const bookings = pgTable(
+  "bookings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mealId: uuid("meal_id")
+      .notNull()
+      .references(() => meals.id, { onDelete: "cascade" }),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+    requestMessage: text("request_message").notNull().default(""),
+    status: bookingStatusEnum("status").notNull().default("pending"),
+    cancelledBy: text("cancelled_by"),
+    cancelReason: text("cancel_reason"),
+    ...timestamps(),
+  },
+  (t) => [
+    unique("bookings_meal_student_unique").on(t.mealId, t.studentId),
+    index("bookings_student_idx").on(t.studentId),
+  ],
+);
+
+export type Profile = typeof profiles.$inferSelect;
+export type Meal = typeof meals.$inferSelect;
+export type Booking = typeof bookings.$inferSelect;
