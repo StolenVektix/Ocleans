@@ -17,5 +17,5 @@ export async function createProfileAction(_prev: FormState, fd: FormData): Promi
   } catch (error) {
     return toFormState(error, values);
   }
-  redirect(homeFor(role));
+  redirect(role === "student" ? "/etudiant/verification" : homeFor(role));
 }

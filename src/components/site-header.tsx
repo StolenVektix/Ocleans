@@ -11,6 +11,9 @@ export async function SiteHeader() {
         <nav className="flex flex-wrap items-center gap-4 text-sm">
           <Link href="/repas">Repas</Link>
           {profile?.role === "student" && <Link href="/etudiant/mes-repas">Mes repas</Link>}
+          {profile?.role === "student" && profile.verificationStatus !== "verified" && (
+            <Link href="/etudiant/verification" className="font-medium text-orange-700">Vérification</Link>
+          )}
           {profile?.role === "host" && <Link href="/hote/offres">Mes offres</Link>}
           {profile ? (
             <>
