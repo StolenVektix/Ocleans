@@ -16,10 +16,18 @@ function useAuthSubmit(run: (fd: FormData) => Promise<{ error: { message?: strin
     event.preventDefault();
     setPending(true);
     setError(undefined);
-    const { error } = await run(new FormData(event.currentTarget));
+    let failure: { message?: string } | null = null;
+    try {
+      ({ error: failure } = await run(new FormData(event.currentTarget)));
+    } catch (thrown) {
+      // Le SDK Neon Auth lève une exception (et non { error }) sur un 401 ou un 422.
+      failure = { message: thrown instanceof Error ? thrown.message : undefined };
+    }
     setPending(false);
-    if (error) {
-      setError(error.message || fallback);
+    if (failure) {
+      setError(/already exists/i.test(failure.message ?? "") ? "Un compte existe déjà avec cet email." : fallback);
+      // Une session précédente a pu être fermée avant la tentative : l'en-tête doit le refléter.
+      router.refresh();
       return;
     }
     router.push("/bienvenue");

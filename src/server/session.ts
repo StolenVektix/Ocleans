@@ -24,7 +24,8 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   const user = await getSessionUser();
   if (!user) return null;
   const [profile] = await getDb().select().from(profiles).where(eq(profiles.userId, user.id)).limit(1);
-  return profile ?? null;
+  if (!profile || profile.deletedAt) return null;
+  return profile;
 }
 
 export function homeFor(role: Role): string {
@@ -38,6 +39,7 @@ export async function requireProfile(role?: Role): Promise<Profile> {
   if (!user) redirect("/connexion");
   const [profile] = await getDb().select().from(profiles).where(eq(profiles.userId, user.id)).limit(1);
   if (!profile) redirect("/bienvenue");
+  if (profile.deletedAt) redirect("/");
   if (profile.suspended) redirect("/compte-suspendu");
   if (role && profile.role !== role) redirect(homeFor(profile.role));
   return profile;

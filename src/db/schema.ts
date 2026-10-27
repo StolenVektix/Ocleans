@@ -45,6 +45,7 @@ export const profiles = pgTable("profiles", {
   school: text("school"),
   verificationStatus: verificationStatusEnum("verification_status").notNull().default("none"),
   suspended: boolean("suspended").notNull().default(false),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   ...timestamps(),
 });
 
