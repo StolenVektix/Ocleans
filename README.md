@@ -35,6 +35,19 @@ npm run dev
 - **Emails** : mode « log » par défaut, qui journalise le destinataire masqué et le sujet. Pour un envoi réel, il faut un domaine vérifié chez Resend ; définir alors `RESEND_API_KEY` et `EMAIL_FROM`.
 - **Carte** : `/repas?vue=carte`, avec un cercle par quartier (Leaflet, OpenStreetMap). L'adresse exacte n'apparaît jamais sur la carte.
 
+## Sécurité et données personnelles
+
+- **Limites anti-abus** : 10 demandes par 24 h, 30 messages par minute, 5 signalements par 24 h, 3 envois de carte par 24 h.
+- **Données personnelles** : `/donnees-personnelles`. Le bouton « Supprimer mon compte », sur `/compte`, anonymise le profil (les messages et avis restent signés « Utilisateur supprimé »), efface la vérification et la photo, annule les repas et demandes à venir, puis supprime le compte Neon Auth.
+- **Nettoyage** : les photos en attente depuis plus de 30 jours et les photos orphelines sont supprimées chaque jour par le cron (Production), ou à la main avec `npm run cleanup`.
+
+## Tests de bout en bout
+
+```bash
+npx playwright install chromium   # une fois
+npm run test:e2e                  # lance le serveur de dev sur la branche demo, puis supprime les comptes e2e+…@example.com
+```
+
 ## Commandes
 
 | Commande | Rôle |
