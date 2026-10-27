@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { after } from "next/server";
 import type { Db } from "@/db/client";
 import { getDb } from "@/db/client";
-import { notifications } from "@/db/schema";
+import { bookings, notifications } from "@/db/schema";
 import { getEmailSender, renderEmail, type EmailSender } from "@/services/email";
 import { getAuthIdentity } from "@/server/auth-identity";
 
@@ -20,7 +20,7 @@ export async function deliverPendingEmails(
   // ou « en cours » depuis plus de 15 min (processus interrompu).
   const claimed = await db.transaction(async (tx) => {
     const rows = await tx
-      .select({ id: notifications.id, userId: notifications.userId, title: notifications.title, body: notifications.body, link: notifications.link })
+      .select({ id: notifications.id, userId: notifications.userId, type: notifications.type, dedupeKey: notifications.dedupeKey, title: notifications.title, body: notifications.body, link: notifications.link })
       .from(notifications)
       .where(
         or(
@@ -44,6 +44,15 @@ export async function deliverPendingEmails(
   const result = { sent: 0, failed: 0, skipped: 0 };
   for (const n of claimed) {
     try {
+      // Rappel d'une réservation annulée entre-temps : on ne l'envoie plus.
+      if (n.type === "reminder" && n.dedupeKey) {
+        const [booking] = await db.select({ status: bookings.status }).from(bookings).where(eq(bookings.id, n.dedupeKey.split(":")[1]));
+        if (booking?.status !== "accepted") {
+          await db.update(notifications).set({ emailStatus: "skipped" }).where(eq(notifications.id, n.id));
+          result.skipped += 1;
+          continue;
+        }
+      }
       const identity = await getAuthIdentity(db, n.userId);
       if (!identity) {
         await db.update(notifications).set({ emailStatus: "skipped" }).where(eq(notifications.id, n.id));
@@ -62,8 +71,10 @@ export async function deliverPendingEmails(
   return result;
 }
 
-export function appUrl(): string {
-  return process.env.APP_URL ?? "http://localhost:3000";
+export function appUrl(env: Record<string, string | undefined> = process.env): string {
+  if (env.APP_URL) return env.APP_URL;
+  if (env.VERCEL_URL) return `https://${env.VERCEL_URL}`;
+  return "http://localhost:3000";
 }
 
 // À appeler en fin de Server Action : l'envoi se fait après la réponse, sans ralentir l'utilisateur.

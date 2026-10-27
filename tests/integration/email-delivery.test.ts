@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { notifications } from "@/db/schema";
+import { bookings, notifications } from "@/db/schema";
 import { deliverPendingEmails } from "@/server/notifications/delivery";
 import { queueNotifications } from "@/server/notifications/service";
 import type { EmailMessage, EmailSender } from "@/services/email";
-import { closeDb, db, makeAuthUser, makeProfile, resetDb } from "./helpers";
+import { closeDb, db, makeAuthUser, makeBooking, makeMeal, makeProfile, resetDb } from "./helpers";
 
 function recordingSender(fail = false): EmailSender & { sent: EmailMessage[] } {
   const sent: EmailMessage[] = [];
@@ -89,5 +89,17 @@ describe("deliverPendingEmails", () => {
     const good = recordingSender();
     expect(await deliverPendingEmails(db, good, { appUrl: "https://x" })).toEqual({ sent: 1, failed: 0, skipped: 0 });
     expect(good.sent[0].subject).toBe("Ocleans — Rappel");
+  });
+  it("n'envoie pas un rappel dont la réservation n'est plus acceptée", async () => {
+    const userId = await makeAuthUser("lea@etu.u-bordeaux.fr", true);
+    await makeProfile({ userId });
+    const host = await makeProfile({ role: "host" });
+    const meal = await makeMeal(host.userId);
+    const booking = await makeBooking(meal.id, userId, "accepted");
+    await queueNotifications(db, [{ userId, type: "reminder", title: "Rappel", body: "Demain", link: "/", dedupeKey: `reminder:${booking.id}:${userId}:${meal.startsAt.toISOString()}` }]);
+    await db.update(bookings).set({ status: "cancelled" }).where(eq(bookings.id, booking.id));
+    const sender = recordingSender();
+    expect(await deliverPendingEmails(db, sender, { appUrl: "https://x" })).toEqual({ sent: 0, failed: 0, skipped: 1 });
+    expect(sender.sent).toHaveLength(0);
   });
 });

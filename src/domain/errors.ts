@@ -17,7 +17,8 @@ export type DomainErrorCode =
   | "ALREADY_REVIEWED"
   | "REVIEW_NOT_ALLOWED"
   | "THREAD_CLOSED"
-  | "RATE_LIMITED";
+  | "RATE_LIMITED"
+  | "ALREADY_HANDLED";
 
 const MESSAGES: Record<DomainErrorCode, string> = {
   FORBIDDEN: "Vous n'avez pas le droit de faire cette action.",
@@ -39,6 +40,7 @@ const MESSAGES: Record<DomainErrorCode, string> = {
   REVIEW_NOT_ALLOWED: "Un avis n'est possible que pour un repas partagé ensemble.",
   THREAD_CLOSED: "Cette conversation est fermée.",
   RATE_LIMITED: "Vous avez atteint la limite pour le moment. Réessayez plus tard.",
+  ALREADY_HANDLED: "Ce signalement a déjà été traité.",
 };
 
 export class DomainError extends Error {

@@ -134,21 +134,23 @@ async function suspendUser(tx: Tx, userId: string, adminId: string, now: Date): 
     )
     .returning({ mealId: bookings.mealId });
   if (studentBookings.length > 0) {
-    const hosts = await tx
-      .select({ hostId: meals.hostId })
+    const titles = await tx
+      .select({ id: meals.id, hostId: meals.hostId, title: meals.title })
       .from(meals)
       .where(inArray(meals.id, studentBookings.map((b) => b.mealId)));
+    const byId = new Map(titles.map((m) => [m.id, m]));
     await queueNotifications(
       tx,
-      hosts.map((h) => ({
-        userId: h.hostId,
+      studentBookings.map((b) => ({
+        userId: byId.get(b.mealId)!.hostId,
         type: "cancelled_by_team" as const,
         title: "Une demande a été annulée",
-        body: `Une demande pour l'un de vos repas a été annulée par l'équipe Ocleans.`,
+        body: `Une demande pour « ${byId.get(b.mealId)!.title} » a été annulée par l'équipe Ocleans.`,
         link: "/hote/offres",
       })),
     );
   }
+
 }
 
 export async function resolveReport(db: Db, actor: Actor, reportId: string, decision: "dismiss" | "suspend", now = new Date()): Promise<void> {
@@ -157,7 +159,7 @@ export async function resolveReport(db: Db, actor: Actor, reportId: string, deci
   await db.transaction(async (tx) => {
     const [report] = await tx.select().from(reports).where(eq(reports.id, reportId)).for("update");
     if (!report) throw new DomainError("NOT_FOUND");
-    if (report.status !== "open") throw new DomainError("INVALID_TRANSITION");
+    if (report.status !== "open") throw new DomainError("ALREADY_HANDLED");
     if (decision === "suspend") {
       const [target] = await tx.select({ role: profiles.role }).from(profiles).where(eq(profiles.userId, report.reportedUserId));
       if (!target || target.role === "admin") throw new DomainError("FORBIDDEN");

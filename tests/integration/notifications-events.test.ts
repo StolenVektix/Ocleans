@@ -103,4 +103,19 @@ describe("notifications de modération et de vérification", () => {
     expect(n).toMatchObject({ type: "verification_rejected", link: "/etudiant/verification" });
     expect(n.body).toContain("Photo floue");
   });
+  it("prévient l'hôte, avec le titre du repas, pour chaque demande annulée par la suspension d'un étudiant", async () => {
+    const admin = await makeProfile({ role: "admin" });
+    const host = await makeProfile({ role: "host" });
+    const student = await makeProfile();
+    const m1 = await makeMeal(host.userId, { title: "Couscous" });
+    const m2 = await makeMeal(host.userId, { title: "Tajine" });
+    const b1 = await makeBooking(m1.id, student.userId, "accepted");
+    await makeBooking(m2.id, student.userId, "pending");
+    const { id } = await createReport(db, host, b1.id, { reason: "Comportement inacceptable" });
+    await resolveReport(db, admin, id, "suspend");
+    const bodies = (await inbox(host.userId)).map((n) => n.body).sort();
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).toContain("Couscous");
+    expect(bodies[1]).toContain("Tajine");
+  });
 });
