@@ -7,8 +7,12 @@ describe("createMemoryStorage", () => {
     await storage.put("cards/u1/a.jpg", new Uint8Array([1, 2, 3]), "image/jpeg");
     expect(storage.objects.get("cards/u1/a.jpg")?.contentType).toBe("image/jpeg");
     expect(await storage.signedUrl("cards/u1/a.jpg", 300)).toContain("cards/u1/a.jpg");
+    await storage.put("cards/u2/b.jpg", new Uint8Array([1]), "image/jpeg");
+    await storage.put("checks/x.txt", new Uint8Array([1]), "text/plain");
+    expect(await storage.list("cards/")).toEqual(["cards/u1/a.jpg", "cards/u2/b.jpg"]);
     await storage.delete("cards/u1/a.jpg");
-    expect(storage.objects.size).toBe(0);
+    expect(await storage.list("cards/")).toEqual(["cards/u2/b.jpg"]);
+    expect(storage.objects.size).toBe(2);
   });
 });
 

@@ -25,7 +25,7 @@ describe("cron quotidien", () => {
     await makeBooking(meal.id, student.userId, "accepted");
     const lines: string[] = [];
     const result = await runDailyJob(db, createLogEmailSender((l) => lines.push(l)), { appUrl: "https://x" });
-    expect(result).toEqual({ reminders: 2, emails: { sent: 2, failed: 0, skipped: 0 } });
+    expect(result).toEqual({ reminders: 2, cleanup: { expired: 0, orphansDeleted: 0 }, emails: { sent: 2, failed: 0, skipped: 0 } });
     expect(lines).toHaveLength(2);
     expect((await db.select().from(notifications)).every((n) => n.emailStatus === "sent")).toBe(true);
   });

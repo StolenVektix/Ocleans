@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:test": "DB_TARGET=test drizzle-kit migrate",
-    "seed:demo": "tsx scripts/seed-demo.ts"
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "cleanup": "tsx scripts/cleanup.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1155.0",
