@@ -6,6 +6,8 @@ import { bookings, meals, profiles, reports } from "@/db/schema";
 import type { Actor } from "@/domain/bookings";
 import { DomainError } from "@/domain/errors";
 import { isUuid } from "@/domain/ids";
+import { assertUnderLimit } from "@/domain/rate-limits";
+import { countRecent } from "@/server/rate-limits";
 import { assertCanReport, otherParticipantId, participantRole } from "@/domain/interactions";
 import type { Role } from "@/domain/types";
 import { assertIsAdmin } from "@/domain/verification";
@@ -60,6 +62,7 @@ export async function createReport(db: Db, actor: Actor, bookingId: string, raw:
   const ctx = await loadBookingContext(db, bookingId);
   if (!ctx) throw new DomainError("NOT_FOUND");
   assertCanReport({ actor, ctx });
+  assertUnderLimit("reports", await countRecent(db, "reports", actor.userId, new Date()));
   const [row] = await db
     .insert(reports)
     .values({ reporterId: actor.userId, reportedUserId: otherParticipantId(actor, ctx), bookingId, reason })

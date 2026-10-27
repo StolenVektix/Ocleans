@@ -5,6 +5,8 @@ import { bookings, meals, profiles } from "@/db/schema";
 import { assertCanDecide, assertCanRequest, canSeeAddress, type Actor } from "@/domain/bookings";
 import { DomainError } from "@/domain/errors";
 import { isUuid } from "@/domain/ids";
+import { assertUnderLimit } from "@/domain/rate-limits";
+import { countRecent } from "@/server/rate-limits";
 import {
   assertCanCancelBooking,
   canCancelBooking,
@@ -54,6 +56,7 @@ export async function requestBooking(
     // Le verrou sur le repas sérialise les demandes et les acceptations concurrentes.
     const [meal] = await tx.select().from(meals).where(eq(meals.id, mealId)).for("update");
     if (!meal) throw new DomainError("NOT_FOUND");
+    assertUnderLimit("bookingRequests", await countRecent(tx, "bookingRequests", actor.userId, now));
     const [existing] = await tx
       .select({ id: bookings.id })
       .from(bookings)
