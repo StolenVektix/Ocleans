@@ -1,5 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { notifications } from "@/db/schema";
+import { meals, notifications } from "@/db/schema";
 import { countUnread, ensureReminders, listNotifications, markAllRead, queueNotifications } from "@/server/notifications/service";
 import { closeDb, db, makeBooking, makeMeal, makeProfile, resetDb } from "./helpers";
 
@@ -96,5 +97,15 @@ describe("ensureReminders", () => {
     const meal = await makeMeal(host.userId, { startsAt: new Date(Date.now() - HOUR) });
     await makeBooking(meal.id, s.userId, "accepted");
     expect(await ensureReminders(db, {})).toBe(0);
+  });
+  it("renvoie un rappel si la date du repas change après un premier rappel", async () => {
+    const host = await makeProfile({ role: "host" });
+    const s = await makeProfile();
+    const meal = await makeMeal(host.userId, { startsAt: new Date(Date.now() + 5 * HOUR) });
+    await makeBooking(meal.id, s.userId, "accepted");
+    expect(await ensureReminders(db, { userId: s.userId })).toBe(1);
+    const nextWeek = new Date(Date.now() + 7 * 24 * HOUR);
+    await db.update(meals).set({ startsAt: nextWeek }).where(eq(meals.id, meal.id));
+    expect(await ensureReminders(db, { userId: s.userId, now: new Date(nextWeek.getTime() - 5 * HOUR) })).toBe(1);
   });
 });

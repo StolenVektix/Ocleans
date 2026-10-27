@@ -103,7 +103,7 @@ describe("resolveReport", () => {
     const results = await Promise.allSettled([resolveReport(db, admin, id, "dismiss"), resolveReport(db, other, id, "suspend")]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
-    expect(rejected.reason).toMatchObject({ code: "INVALID_TRANSITION" });
+    expect(rejected.reason).toMatchObject({ code: "ALREADY_HANDLED" });
     await expect(resolveReport(db, admin, "abc", "dismiss")).rejects.toMatchObject({ code: "NOT_FOUND" });
     const [r] = await db.insert(reports).values({ reporterId: student.userId, reportedUserId: other.userId, reason: "Signalement d'un admin" }).returning();
     await expect(resolveReport(db, admin, r.id, "suspend")).rejects.toMatchObject({ code: "FORBIDDEN" });

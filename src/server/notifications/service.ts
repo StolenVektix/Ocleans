@@ -108,7 +108,7 @@ export async function ensureReminders(db: Db, options: { userId?: string; now?: 
         title: "Rappel : votre repas approche",
         body: `« ${r.title} » chez ${r.hostFirstName}, ${when} (${r.neighborhood}). L'adresse est dans Mes repas.`,
         link: "/etudiant/mes-repas",
-        dedupeKey: `reminder:${r.bookingId}:${r.studentId}`,
+        dedupeKey: `reminder:${r.bookingId}:${r.studentId}:${r.startsAt.toISOString()}`,
       });
     }
     if (!options.userId || options.userId === r.hostId) {
@@ -118,7 +118,7 @@ export async function ensureReminders(db: Db, options: { userId?: string; now?: 
         title: "Rappel : vous recevez bientôt",
         body: `${r.studentFirstName} vient partager « ${r.title} », ${when}.`,
         link: "/hote/offres",
-        dedupeKey: `reminder:${r.bookingId}:${r.hostId}`,
+        dedupeKey: `reminder:${r.bookingId}:${r.hostId}:${r.startsAt.toISOString()}`,
       });
     }
   }

@@ -7,6 +7,8 @@ import { profiles, verifications } from "@/db/schema";
 import type { Actor } from "@/domain/bookings";
 import { DomainError } from "@/domain/errors";
 import { isUuid } from "@/domain/ids";
+import { assertUnderLimit } from "@/domain/rate-limits";
+import { countRecent } from "@/server/rate-limits";
 import type { VerificationMethod, VerificationRequestStatus, VerificationStatus } from "@/domain/types";
 import {
   CARD_FILE_MESSAGES,
@@ -120,6 +122,7 @@ export async function submitStudentCard(
 ): Promise<{ id: string }> {
   assertCanSubmitVerification(actor);
   const input = cardSchema.parse({ ...raw, card: { type: file.type, size: file.size } });
+  assertUnderLimit("cardSubmissions", await countRecent(db, "cardSubmissions", actor.userId, new Date()));
   const key = `cards/${actor.userId}/${crypto.randomUUID()}.${cardExtension(file.type)}`;
   await storage.put(key, file.bytes, file.type);
   try {

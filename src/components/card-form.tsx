@@ -52,7 +52,8 @@ export function CardForm() {
       </div>
       <p className="rounded-lg bg-stone-100 p-3 text-xs text-stone-600">
         Votre photo sert uniquement à vérifier votre statut étudiant. Elle est stockée de façon privée, consultée par l'équipe Ocleans,
-        puis supprimée dès la décision. Nous conservons seulement votre établissement, votre numéro étudiant et le résultat.
+        puis supprimée dès la décision. Nous conservons seulement votre établissement, votre numéro étudiant et le résultat.{" "}
+        <a href="/donnees-personnelles" className="underline">En savoir plus</a>
       </p>
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Envoi…" : "Envoyer ma carte"}

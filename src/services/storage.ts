@@ -1,10 +1,11 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export interface CardStorage {
   put(key: string, body: Uint8Array, contentType: string): Promise<void>;
   signedUrl(key: string, expiresInSeconds: number): Promise<string>;
   delete(key: string): Promise<void>;
+  list(prefix: string): Promise<string[]>;
 }
 
 export interface NeonStorageConfig {
@@ -33,6 +34,16 @@ export function createNeonStorage(cfg: NeonStorageConfig): CardStorage {
     },
     async delete(key) {
       await s3.send(new DeleteObjectCommand({ Bucket: cfg.bucket, Key: key }));
+    },
+    async list(prefix) {
+      const keys: string[] = [];
+      let token: string | undefined;
+      do {
+        const page = await s3.send(new ListObjectsV2Command({ Bucket: cfg.bucket, Prefix: prefix, ContinuationToken: token }));
+        for (const o of page.Contents ?? []) if (o.Key) keys.push(o.Key);
+        token = page.IsTruncated ? page.NextContinuationToken : undefined;
+      } while (token);
+      return keys;
     },
   };
 }
@@ -79,6 +90,9 @@ export function createMemoryStorage(): CardStorage & { objects: Map<string, { bo
     },
     async delete(key) {
       objects.delete(key);
+    },
+    async list(prefix) {
+      return [...objects.keys()].filter((k) => k.startsWith(prefix)).sort();
     },
   };
 }

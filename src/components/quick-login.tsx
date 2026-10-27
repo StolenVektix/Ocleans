@@ -16,9 +16,14 @@ export function QuickLogin({ accounts, password }: { accounts: readonly { email:
     setError(undefined);
     // Sans déconnexion préalable, le cache de session de l'ancien compte reste prioritaire quelques minutes.
     await authClient.signOut().catch(() => undefined);
-    const { error } = await authClient.signIn.email({ email, password });
+    let failed = false;
+    try {
+      failed = Boolean((await authClient.signIn.email({ email, password })).error);
+    } catch {
+      failed = true; // le SDK lève une exception sur un 401
+    }
     setPending(null);
-    if (error) {
+    if (failed) {
       setError("Connexion de démo impossible. Les données de démo ont-elles été créées (npm run seed:demo) ?");
       return;
     }

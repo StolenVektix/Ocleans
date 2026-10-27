@@ -37,7 +37,9 @@ export function ThreadView({ bookingId, canWrite, messages }: { bookingId: strin
   return (
     <div className="space-y-4">
       <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
-        {messages.length === 0 && <p className="text-sm text-stone-500">Pas encore de message. Présentez-vous !</p>}
+        {messages.length === 0 && (
+          <p className="text-sm text-stone-500">{canWrite ? "Pas encore de message. Présentez-vous !" : "Aucun message."}</p>
+        )}
         {messages.map((m) => (
           <div
             key={m.id}

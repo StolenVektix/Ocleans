@@ -5,6 +5,8 @@ import { messages, profiles } from "@/db/schema";
 import type { Actor } from "@/domain/bookings";
 import { DomainError } from "@/domain/errors";
 import { canReadThread, canWriteThread, participantRole } from "@/domain/interactions";
+import { assertUnderLimit } from "@/domain/rate-limits";
+import { countRecent } from "@/server/rate-limits";
 import { loadBookingContext } from "@/server/bookings/context";
 
 const messageSchema = z.object({
@@ -55,5 +57,6 @@ export async function postMessage(db: Db, actor: Actor, bookingId: string, raw: 
   if (!ctx) throw new DomainError("NOT_FOUND");
   if (!canReadThread(actor, ctx)) throw new DomainError("FORBIDDEN");
   if (!canWriteThread(actor, ctx, now)) throw new DomainError("THREAD_CLOSED");
+  assertUnderLimit("messages", await countRecent(db, "messages", actor.userId, now));
   await db.insert(messages).values({ bookingId, senderId: actor.userId, body });
 }
