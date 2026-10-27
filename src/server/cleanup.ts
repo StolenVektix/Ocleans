@@ -48,8 +48,12 @@ export async function cleanupStaleCards(db: Db, storage: CardStorage, now = new 
   let orphansDeleted = 0;
   for (const key of await storage.list("cards/")) {
     if (referenced.has(key)) continue;
-    await storage.delete(key);
-    orphansDeleted += 1;
+    try {
+      await storage.delete(key);
+      orphansDeleted += 1;
+    } catch (e) {
+      console.warn("[cleanup] photo orpheline non supprimée", key, e);
+    }
   }
   return { expired: expiredCount, orphansDeleted };
 }

@@ -47,6 +47,9 @@ export async function deleteAccount(
       );
     }
 
+    // Adresse et description de tous ses repas, passés compris : seuls restent le titre et la date.
+    await tx.update(meals).set({ address: "", description: "" }).where(eq(meals.hostId, actor.userId));
+
     // Demandes à venir de l'étudiant : annulées, et les hôtes prévenus.
     const upcoming = tx.select({ id: meals.id }).from(meals).where(gt(meals.startsAt, now));
     const myBookings = await tx

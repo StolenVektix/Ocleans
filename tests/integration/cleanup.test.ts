@@ -38,4 +38,13 @@ describe("cleanupStaleCards", () => {
     expect(await storage.list("cards/")).toEqual([r.cardObjectKey]);
     expect(await cleanupStaleCards(db, storage)).toEqual({ expired: 0, orphansDeleted: 0 });
   });
+
+  it("continue le balayage quand une photo orpheline ne se supprime pas", async () => {
+    const storage = createMemoryStorage();
+    await storage.put("cards/a.png", new Uint8Array(1), "image/png");
+    await storage.put("cards/b.png", new Uint8Array(1), "image/png");
+    const failing = { ...storage, delete: async (key: string) => { if (key === "cards/a.png") throw new Error("S3"); await storage.delete(key); } };
+    expect(await cleanupStaleCards(db, failing)).toEqual({ expired: 0, orphansDeleted: 1 });
+    expect(await storage.list("cards/")).toEqual(["cards/a.png"]);
+  });
 });

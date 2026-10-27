@@ -56,6 +56,19 @@ describe("deleteAccount", () => {
     expect(await db.select().from(reviews)).toHaveLength(1);
   });
 
+  it("efface l'adresse et la description de tous les repas de l'hôte, passés compris", async () => {
+    const hostId = await makeAuthUser("mireille@example.com");
+    const host = await makeProfile({ userId: hostId, role: "host" });
+    const past = await makeMeal(host.userId, { startsAt: new Date(Date.now() - DAY) });
+    const future = await makeMeal(host.userId);
+    await deleteAccount(db, createMemoryStorage(), host, { confirmation: "SUPPRIMER" });
+    for (const id of [past.id, future.id]) {
+      const [m] = await db.select().from(meals).where(eq(meals.id, id));
+      expect(m.address).toBe("");
+      expect(m.description).toBe("");
+    }
+  });
+
   it("efface les données de vérification d'un étudiant, photo comprise, et annule ses demandes à venir", async () => {
     const storage = createMemoryStorage();
     const userId = await makeAuthUser("chloe@gmail.com");

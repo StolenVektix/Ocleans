@@ -10,8 +10,15 @@ export const RATE_LIMITS = {
   cardSubmissions: { max: 3, windowMs: 24 * HOUR },
 } as const;
 
+const RETRY_HINT: Record<keyof typeof RATE_LIMITS, string> = {
+  bookingRequests: "Réessayez dans 24 heures.",
+  messages: "Réessayez dans une minute.",
+  reports: "Réessayez dans 24 heures.",
+  cardSubmissions: "Réessayez dans 24 heures.",
+};
+
 export type RateLimitKey = keyof typeof RATE_LIMITS;
 
 export function assertUnderLimit(key: RateLimitKey, recentCount: number): void {
-  if (recentCount >= RATE_LIMITS[key].max) throw new DomainError("RATE_LIMITED");
+  if (recentCount >= RATE_LIMITS[key].max) throw new DomainError("RATE_LIMITED", `Vous avez atteint la limite pour le moment. ${RETRY_HINT[key]}`);
 }

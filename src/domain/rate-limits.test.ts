@@ -15,4 +15,9 @@ describe("assertUnderLimit", () => {
     expect(RATE_LIMITS.reports).toEqual({ max: 5, windowMs: 24 * 3600_000 });
     expect(RATE_LIMITS.cardSubmissions).toEqual({ max: 3, windowMs: 24 * 3600_000 });
   });
+
+  it("dit quand réessayer", () => {
+    expect(() => assertUnderLimit("messages", 30)).toThrow("Réessayez dans une minute.");
+    expect(() => assertUnderLimit("reports", 5)).toThrow("Réessayez dans 24 heures.");
+  });
 });

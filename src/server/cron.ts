@@ -15,7 +15,13 @@ export function isAuthorizedCron(authorization: string | null, secret: string | 
 
 export async function runDailyJob(db: Db, sender: EmailSender, options: { appUrl: string; now?: Date; storage?: CardStorage }) {
   const reminders = await ensureReminders(db, { now: options.now });
-  const cleanup = options.storage ? await cleanupStaleCards(db, options.storage, options.now) : { expired: 0, orphansDeleted: 0 };
+  // Un incident de stockage ne doit pas bloquer l'envoi des rappels.
+  const cleanup = options.storage
+    ? await cleanupStaleCards(db, options.storage, options.now).catch((e) => {
+        console.error("[cron] nettoyage des cartes en échec", e);
+        return null;
+      })
+    : { expired: 0, orphansDeleted: 0 };
   const emails = await deliverPendingEmails(db, sender, { appUrl: options.appUrl, limit: 500 });
   return { reminders, cleanup, emails };
 }
