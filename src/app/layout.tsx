@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DemoBanner } from "@/components/demo-banner";
+import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { isDemoMode } from "@/lib/demo";
 import "./globals.css";
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {isDemoMode() && <DemoBanner />}
         <SiteHeader />
         {children}
+        <SiteFooter />
       </body>
     </html>
   );
